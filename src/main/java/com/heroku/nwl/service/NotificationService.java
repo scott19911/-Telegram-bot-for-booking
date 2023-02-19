@@ -28,11 +28,11 @@ public class NotificationService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public List<SendMessage> adminNotify(Long chatId, LocalDate reserveDate, LocalTime reserveTime) {
+    public List<SendMessage> adminNotify(Long chatId, LocalDate reserveDate, LocalTime reserveTime,String message) {
         List<User> adminList = userRepository.findByRole(Role.ADMIN);
         User user = userRepository.findByChatId(chatId);
         List<SendMessage> messages = new ArrayList<>();
-        String messageText = new Formatter().format("Нове бронювання на %s %s \nНа ім'я %s \nтелефон +%s"
+        String messageText = new Formatter().format(message
                 , reserveTime, reserveDate, user.getFirstName(), user.getPhoneNumber()).toString();
         for (User admin : adminList) {
             messages.add(prepareMessage(admin.getChatId(), messageText));

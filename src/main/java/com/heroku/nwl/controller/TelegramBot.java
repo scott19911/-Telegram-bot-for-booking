@@ -1,8 +1,12 @@
 package com.heroku.nwl.controller;
 
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.heroku.nwl.Role;
 import com.heroku.nwl.config.BotConfig;
+import com.heroku.nwl.constants.Constants;
+import com.heroku.nwl.dto.ButtonDto;
 import com.heroku.nwl.model.User;
 import com.heroku.nwl.model.UserRepository;
 import com.heroku.nwl.service.CallbackQueryHandler;
@@ -25,8 +29,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
-
-import static com.heroku.nwl.service.KeyboardService.ORDER_TIME;
+import static com.heroku.nwl.constants.Commands.CANCEL_RESERVE;
 
 @Slf4j
 @Controller
@@ -112,13 +115,28 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void notifyAdmin(EditMessageText editMessageText, Update update) {
-        if (editMessageText.getText().startsWith("You are reserve ")) {
+        String messageText = null;
+        if (editMessageText.getText().startsWith("You are reserve ")){
+            messageText = Constants.NEW_RESERVATION;
+        } if (editMessageText.getText().startsWith("You are delete reserve")){
+            messageText = Constants.USER_CANSEL_RESERVATION;
+        }
+        if (messageText != null) {
             String callbackData = update.getCallbackQuery().getData();
-            String[] orderData = callbackData.replace(ORDER_TIME, "").split(";");
-            LocalDate orderDate = LocalDate.parse(orderData[0]);
-            LocalTime orderTime = LocalTime.parse(orderData[1]);
-            List<SendMessage> messages = notificationService.adminNotify
-                    (update.getCallbackQuery().getMessage().getChatId(), orderDate, orderTime);
+            ButtonDto buttonDto;
+            try {
+                buttonDto = new ObjectMapper().readValue(callbackData, ButtonDto.class);
+            } catch (JsonProcessingException e) {
+                buttonDto = null;
+            }
+            assert buttonDto != null;
+            LocalDate orderDate = buttonDto.getCurrentDate();
+            LocalTime orderTime = buttonDto.getReservedTime();
+            List<SendMessage> messages = notificationService.adminNotify(
+                    update.getCallbackQuery().getMessage().getChatId(),
+                    orderDate,
+                    orderTime,
+                    messageText);
             for (SendMessage message : messages
             ) {
                 executeMessage(message);
@@ -128,11 +146,14 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     private SendMessage notifyUserAboutCancelingReservation(Update update) {
         String callbackData = update.getCallbackQuery().getData();
-        if (callbackData.contains("canselReservation")) {
-            String orderIdString = callbackData.replace("canselReservation", "");
-            String[] dataString = orderIdString.split(";");
-            Long orderId = Long.parseLong(dataString[0]);
-            return notificationService.notifyUser(orderId);
+        ButtonDto buttonDto;
+        try {
+            buttonDto = new ObjectMapper().readValue(callbackData, ButtonDto.class);
+        } catch (JsonProcessingException e) {
+            buttonDto = null;
+        }
+        if (buttonDto != null && buttonDto.getCommand().equals(CANCEL_RESERVE)) {
+            return notificationService.notifyUser(buttonDto.getReservationId());
         }
         return null;
     }
