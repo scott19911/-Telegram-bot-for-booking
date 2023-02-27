@@ -29,6 +29,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+
 import static com.heroku.nwl.constants.Commands.CANCEL_RESERVE;
 
 @Slf4j
@@ -83,6 +84,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         if (update.hasMessage() && update.getMessage().getContact() != null) {
             registerUser(update.getMessage());
         }
+
         if (update.hasMessage() && update.getMessage().hasText()) {
             executeMessage(messageHandler.getMessage(update));
         } else if (update.hasCallbackQuery()) {

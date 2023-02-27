@@ -22,6 +22,8 @@ public class ButtonDto {
     private LocalTime reservedTime;
     @JsonProperty("id")
     private Long reservationId;
+    @JsonProperty("to")
+    private String returnTo;
 
     public void setCurrentDate(String currentDate) {
         if (currentDate != null) this.currentDate = LocalDate.parse(currentDate);

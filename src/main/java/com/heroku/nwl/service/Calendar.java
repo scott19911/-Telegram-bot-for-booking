@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.heroku.nwl.constants.Commands.ALL_RESERVATION_ON_DATE;
 import static com.heroku.nwl.constants.Commands.JSON_COMMAND_WITH_CURRENT_DATE;
 
 @Component
@@ -53,6 +54,8 @@ public class Calendar {
             if (date.plusDays(i).getMonth().equals(date.getMonth())) {
                 if (!dayOffList.isEmpty() && dayOffList.contains(new DayOff(date.plusDays(i)))) {
                     String dayData = String.format(JSON_COMMAND_WITH_CURRENT_DATE, DELETE_DAY_OFF, date.plusDays(i));
+                    dayData = command.equals(ALL_RESERVATION_ON_DATE) ?
+                            EMPTY_DATA : dayData;
                     row.add(new CalendarDayDto(xEmoji,dayData));
                 } else {
                     String dayData = String.format(JSON_COMMAND_WITH_CURRENT_DATE, command, date.plusDays(i));

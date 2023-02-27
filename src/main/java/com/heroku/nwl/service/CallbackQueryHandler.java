@@ -2,6 +2,7 @@ package com.heroku.nwl.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.heroku.nwl.constants.Constants;
 import com.heroku.nwl.dto.ButtonDto;
 import com.heroku.nwl.dto.CalendarDayDto;
 import com.heroku.nwl.model.DayOff;
@@ -20,11 +21,14 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 
 import static com.heroku.nwl.constants.Commands.ALL_RESERVATION_ON_DATE;
+import static com.heroku.nwl.constants.Commands.AVAILABLE_DATE_TO_RESERVE;
 import static com.heroku.nwl.constants.Commands.CANCEL_RESERVE;
 import static com.heroku.nwl.constants.Commands.CHANGE_MONTH;
 import static com.heroku.nwl.constants.Commands.DELETE_RESERVE;
+import static com.heroku.nwl.constants.Commands.GO_BACK;
 import static com.heroku.nwl.constants.Commands.ORDER_TIME;
 import static com.heroku.nwl.constants.Commands.WORKDAY;
 import static com.heroku.nwl.service.Calendar.ADD_DAY_OFF;
@@ -41,9 +45,11 @@ public class CallbackQueryHandler {
     private final KeyboardService keyboardService;
     private final OrderRepository orderRepository;
 
+
     public EditMessageText getEditMessage(Update update) {
         EditMessageText message = new EditMessageText();
         String callbackData = update.getCallbackQuery().getData();
+        String text = Constants.INCORRECT_DATE;
         long messageId = update.getCallbackQuery().getMessage().getMessageId();
         long chatId = update.getCallbackQuery().getMessage().getChatId();
         ButtonDto buttonDto;
@@ -53,7 +59,7 @@ public class CallbackQueryHandler {
             buttonDto = null;
         }
         if (buttonDto != null && buttonDto.getCommand().equals(CHANGE_MONTH)) {
-            List<List<CalendarDayDto>> calendar = calendarService.getCalendar(buttonDto.getCurrentDate(), ADD_DAY_OFF);
+            List<List<CalendarDayDto>> calendar = calendarService.getCalendar(buttonDto.getCurrentDate(), buttonDto.getReturnTo());
             InlineKeyboardMarkup keyboardMarkup = keyboardService.getCalendar(calendar, buttonDto.getCurrentDate());
             message = prepareEditMessageText("Оберіть вихідні", chatId, messageId, keyboardMarkup);
         }
@@ -62,17 +68,23 @@ public class CallbackQueryHandler {
         }
         if (buttonDto != null && buttonDto.getCommand().equals(ADD_DAY_OFF)) {
             DayOff dayOff = new DayOff(buttonDto.getCurrentDate());
-            dayOffRepository.save(dayOff);
+            if (LocalDate.now().isBefore(dayOff.getDayOffDate())){
+                dayOffRepository.save(dayOff);
+                text = Constants.CHOOSE_DATE;
+            }
             List<List<CalendarDayDto>> calendar = calendarService.getCalendar(buttonDto.getCurrentDate(), ADD_DAY_OFF);
             InlineKeyboardMarkup keyboardMarkup = keyboardService.getCalendar(calendar, buttonDto.getCurrentDate());
-            message = prepareEditMessageText("Оберіть вихідні", chatId, messageId, keyboardMarkup);
+            message = prepareEditMessageText(text, chatId, messageId, keyboardMarkup);
         }
         if (buttonDto != null && buttonDto.getCommand().equals(DELETE_DAY_OFF)) {
             DayOff dayOff = new DayOff(buttonDto.getCurrentDate());
-            dayOffRepository.delete(dayOff);
+            if (LocalDate.now().isBefore(dayOff.getDayOffDate())){
+                dayOffRepository.delete(dayOff);
+                text = Constants.CHOOSE_DATE;
+            }
             List<List<CalendarDayDto>> calendar = calendarService.getCalendar(buttonDto.getCurrentDate(), ADD_DAY_OFF);
             InlineKeyboardMarkup keyboardMarkup = keyboardService.getCalendar(calendar, buttonDto.getCurrentDate());
-            message = prepareEditMessageText("Оберіть вихідні", chatId, messageId, keyboardMarkup);
+            message = prepareEditMessageText(text, chatId, messageId, keyboardMarkup);
         }
         if (buttonDto != null && buttonDto.getCommand().equals(WORKDAY)) {
             DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -95,6 +107,16 @@ public class CallbackQueryHandler {
         }
         if (buttonDto != null && buttonDto.getCommand().equals(CANCEL_RESERVE)) {
             message = canselReservation(buttonDto, chatId, messageId);
+        }
+        if(buttonDto != null && buttonDto.getCommand().equals(GO_BACK)){
+            if(Objects.equals(buttonDto.getReturnTo(), AVAILABLE_DATE_TO_RESERVE)){
+                message = prepareEditMessageText( "Оберіть дату",chatId, messageId, keyboardService.getScheduleDays());
+            }
+            if (buttonDto.getReturnTo().equals(ALL_RESERVATION_ON_DATE)){
+                List<List<CalendarDayDto>> calendar = calendarService.getCalendar(buttonDto.getCurrentDate(), ALL_RESERVATION_ON_DATE);
+                InlineKeyboardMarkup keyboardMarkup = keyboardService.getCalendar(calendar, buttonDto.getCurrentDate());
+                message = prepareEditMessageText( "Оберіть дату",chatId, messageId, keyboardMarkup);
+            }
         }
         return message;
     }

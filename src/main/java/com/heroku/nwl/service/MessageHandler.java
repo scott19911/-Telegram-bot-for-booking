@@ -56,7 +56,7 @@ public class MessageHandler {
             case Commands.ADMIN_CALENDAR_RESERVE -> {
                 List<List<CalendarDayDto>> calendar = calendarService.getCalendar(currentDate, ALL_RESERVATION_ON_DATE);
                 InlineKeyboardMarkup keyboardMarkup = keyboardService.getCalendar(calendar, currentDate);
-                message = prepareSendMessage(chatId, "Оберіть вихідні", keyboardMarkup);
+                message = prepareSendMessage(chatId, "Оберіть дату", keyboardMarkup);
             }
             case Commands.AVAILABLE_DATE_TO_RESERVE ->
                     message = prepareSendMessage(chatId, "Оберіть дату", keyboardService.getScheduleDays());
