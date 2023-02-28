@@ -7,6 +7,13 @@ public class Constants {
     public static final String NEW_RESERVATION = "Нове бронювання на %s %s \nНа ім'я %s \nтелефон +%s";
     public static final String USER_CANSEL_RESERVATION = "Відміненно бронювання на %s %s \nНа ім'я %s \nтелефон +%s";
     public static final String BACK = "BACK";
-    public static final String CHOOSE_DATE = "Оберіть вихідні";
+    public static final String CHOOSE_DATE = "Оберіть дату: ";
+    public static final String CHOOSE_DAY_OFF = "Оберіть вихідні";
     public static final String INCORRECT_DATE = "Невірна дата, оберіть іншу";
+    public static final String ERROR = "Unknown command";
+    public static final String DATE_PATTERN = "dd/MM/yyyy";
+    public static final String DELETE_RESERVATION_MESSAGE = "You are delete reserve ";
+    public static final String ERROR_DELETE_RESERVATION_MESSAGE = "Sorry you can't delete reserve ";
+    public static final int AFTER = -1;
+
 }

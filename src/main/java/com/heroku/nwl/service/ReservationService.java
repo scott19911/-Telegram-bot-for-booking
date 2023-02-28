@@ -1,5 +1,6 @@
 package com.heroku.nwl.service;
 
+import com.heroku.nwl.constants.Constants;
 import com.heroku.nwl.model.OrderRepository;
 import com.heroku.nwl.model.Orders;
 import com.heroku.nwl.model.UserRepository;
@@ -36,8 +37,20 @@ public class ReservationService {
         return true;
     }
 
-    public void deleteReservation(Long reservationId) {
-        orderRepository.deleteById(reservationId);
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean deleteReservation(Long reservationId) {
+        LocalDate currentDate = LocalDate.now();
+        LocalTime currentTime = LocalTime.now();
+        Orders order = orderRepository.findByOrderId(reservationId);
+        if (order != null && order.getOrderDate().compareTo(currentDate) != Constants.AFTER) {
+            orderRepository.deleteById(reservationId);
+            return true;
+        }
+        if (order != null && order.getOrderTime().compareTo(currentTime) != Constants.AFTER) {
+            orderRepository.deleteById(reservationId);
+            return true;
+        }
+        return false;
     }
 
     public List<Orders> getUserReservations(Long chatId, LocalDate date, LocalTime time) {
