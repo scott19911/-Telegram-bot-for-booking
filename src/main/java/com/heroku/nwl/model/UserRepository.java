@@ -7,6 +7,6 @@ import java.util.List;
 
 public interface UserRepository extends CrudRepository<User, Long> {
     User findByChatId(Long chatId);
-
     List<User> findByRole(Role role);
+
 }

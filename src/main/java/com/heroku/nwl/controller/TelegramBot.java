@@ -7,24 +7,26 @@ import com.heroku.nwl.Role;
 import com.heroku.nwl.config.BotConfig;
 import com.heroku.nwl.constants.Constants;
 import com.heroku.nwl.dto.ButtonDto;
-import com.heroku.nwl.model.User;
-import com.heroku.nwl.model.UserRepository;
 import com.heroku.nwl.service.CallbackQueryHandler;
+import com.heroku.nwl.service.FileHandler;
 import com.heroku.nwl.service.MessageHandler;
 import com.heroku.nwl.service.NotificationService;
+import com.heroku.nwl.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
-import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.Document;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.io.File;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -36,21 +38,21 @@ import static com.heroku.nwl.constants.Commands.CANCEL_RESERVE;
 @Controller
 public class TelegramBot extends TelegramLongPollingBot {
     static final String ERROR_TEXT = "Error occurred: ";
-    private final UserRepository userRepository;
     private final BotConfig config;
     private final CallbackQueryHandler callbackQueryHandler;
     private final MessageHandler messageHandler;
     private final NotificationService notificationService;
-    @Value("${bot.admin.phone}")
-    private String botAdminPhone;
+    private final FileHandler fileHandler;
+    private final UserService userService;
 
-    public TelegramBot(UserRepository userRepository, BotConfig config,
-                       CallbackQueryHandler callbackQueryHandler, MessageHandler messageHandler, NotificationService notificationService) {
-        this.userRepository = userRepository;
+    public TelegramBot(BotConfig config,
+                       CallbackQueryHandler callbackQueryHandler, MessageHandler messageHandler, NotificationService notificationService, FileHandler fileHandler, UserService userService) {
         this.config = config;
         this.callbackQueryHandler = callbackQueryHandler;
         this.messageHandler = messageHandler;
         this.notificationService = notificationService;
+        this.fileHandler = fileHandler;
+        this.userService = userService;
         setBotMenu();
     }
 
@@ -82,9 +84,25 @@ public class TelegramBot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().getContact() != null) {
-            registerUser(update.getMessage());
+            String text = userService.registerUser(update.getMessage());
+            SendMessage message = SendMessage
+                    .builder()
+                    .chatId(String.valueOf(update.getMessage().getChatId()))
+                    .text(text)
+                    .build();
+            executeMessage(message);
         }
-
+        if(update.hasMessage() && update.getMessage().getDocument() != null){
+            SendMessage message = new SendMessage();
+            long chatId = update.getMessage().getChatId();
+            message.setChatId(String.valueOf(chatId));
+            if(Role.ADMIN.equals(userService.getUserRole(chatId))){
+                message = receiveFile(update,message);
+            } else{
+                message.setText(ERROR_TEXT);
+            }
+            executeMessage(message);
+        }
         if (update.hasMessage() && update.getMessage().hasText()) {
             executeMessage(messageHandler.getMessage(update));
         } else if (update.hasCallbackQuery()) {
@@ -97,25 +115,21 @@ public class TelegramBot extends TelegramLongPollingBot {
             }
         }
     }
-
-    public void registerUser(Message msg) {
-        User user = userRepository.findById(msg.getChatId()).orElse(new User());
-        var chatId = msg.getChatId();
-        var chat = msg.getChat();
-
-        user.setChatId(chatId);
-        user.setFirstName(chat.getFirstName());
-        user.setLastName(chat.getLastName());
-        user.setUserName(chat.getUserName());
-        user.setPhoneNumber(msg.getContact().getPhoneNumber());
-        user.setRole(Role.USER);
-        if (user.getPhoneNumber().equals(botAdminPhone)) {
-            user.setRole(Role.ADMIN);
-        }
-        userRepository.save(user);
-        log.info("user saved: " + user);
+public SendMessage receiveFile(Update update, SendMessage message){
+    Document document = update.getMessage().getDocument();
+    GetFile getFile = new GetFile();
+    getFile.setFileId(document.getFileId());
+    try {
+        org.telegram.telegrambots.meta.api.objects.File telegramFile = execute(getFile);
+        File file = downloadFile(telegramFile);
+        message.setText(fileHandler.fileHandler(document.getFileName(),file.getPath()));
+    } catch (TelegramApiException e) {
+        e.printStackTrace();
+    } catch (Exception e) {
+        throw new RuntimeException(e);
     }
-
+    return message;
+}
     private void notifyAdmin(EditMessageText editMessageText, Update update) {
         String messageText = null;
         if (editMessageText.getText().startsWith("You are reserve ")){

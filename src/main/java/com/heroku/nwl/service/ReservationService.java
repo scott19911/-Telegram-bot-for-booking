@@ -46,7 +46,7 @@ public class ReservationService {
             orderRepository.deleteById(reservationId);
             return true;
         }
-        if (order != null && order.getOrderTime().compareTo(currentTime) != Constants.AFTER) {
+        if (order != null && order.getOrderDate().equals(currentDate) && order.getOrderTime().compareTo(currentTime) != Constants.AFTER) {
             orderRepository.deleteById(reservationId);
             return true;
         }

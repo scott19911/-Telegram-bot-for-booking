@@ -14,6 +14,9 @@ public class Constants {
     public static final String DATE_PATTERN = "dd/MM/yyyy";
     public static final String DELETE_RESERVATION_MESSAGE = "You are delete reserve ";
     public static final String ERROR_DELETE_RESERVATION_MESSAGE = "Sorry you can't delete reserve ";
+    public static final String FILE_SERVICES_CATALOG = "services.xlsx";
+    public static final String FILE_SETTINGS = "settings.xlsx";
+    public static final String USER_DATA = "We received next information:\nChatId %d \nFirst Name %s\nLast Name %s\nUser Name %s\nPhone number %s";
     public static final int AFTER = -1;
 
 }
