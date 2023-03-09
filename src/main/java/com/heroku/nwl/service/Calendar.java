@@ -53,12 +53,12 @@ public class Calendar {
         for (int i = 0; i < 7 - shift; i++) {
             if (date.plusDays(i).getMonth().equals(date.getMonth())) {
                 if (!dayOffList.isEmpty() && dayOffList.contains(new DayOff(date.plusDays(i)))) {
-                    String dayData = String.format(JSON_COMMAND_WITH_CURRENT_DATE, DELETE_DAY_OFF, date.plusDays(i));
+                    String dayData = String.format(JSON_COMMAND_WITH_CURRENT_DATE, DELETE_DAY_OFF, date.plusDays(i).format(KeyboardService.FORMATTER));
                     dayData = command.equals(ALL_RESERVATION_ON_DATE) ?
                             EMPTY_DATA : dayData;
                     row.add(new CalendarDayDto(xEmoji,dayData));
                 } else {
-                    String dayData = String.format(JSON_COMMAND_WITH_CURRENT_DATE, command, date.plusDays(i));
+                    String dayData = String.format(JSON_COMMAND_WITH_CURRENT_DATE, command, date.plusDays(i).format(KeyboardService.FORMATTER));
                     row.add(new CalendarDayDto(String.valueOf(date.plusDays(i).getDayOfMonth()),dayData));
                 }
             } else {

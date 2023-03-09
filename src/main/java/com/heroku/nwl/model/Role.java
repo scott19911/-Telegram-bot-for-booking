@@ -1,4 +1,4 @@
-package com.heroku.nwl;
+package com.heroku.nwl.model;
 
 public enum Role {
     USER,

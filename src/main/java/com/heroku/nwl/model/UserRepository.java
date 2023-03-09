@@ -1,6 +1,5 @@
 package com.heroku.nwl.model;
 
-import com.heroku.nwl.Role;
 import org.springframework.data.repository.CrudRepository;
 
 import java.util.List;

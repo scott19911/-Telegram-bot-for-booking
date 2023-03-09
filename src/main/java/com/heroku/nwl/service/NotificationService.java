@@ -1,8 +1,8 @@
 package com.heroku.nwl.service;
 
-import com.heroku.nwl.Role;
-import com.heroku.nwl.model.OrderRepository;
-import com.heroku.nwl.model.Orders;
+import com.heroku.nwl.model.ReservationRepository;
+import com.heroku.nwl.model.Reservation;
+import com.heroku.nwl.model.Role;
 import com.heroku.nwl.model.User;
 import com.heroku.nwl.model.UserRepository;
 import org.springframework.stereotype.Service;
@@ -19,12 +19,12 @@ import java.util.List;
 @Service
 public class NotificationService {
     private final UserRepository userRepository;
-    private final OrderRepository orderRepository;
+    private final ReservationRepository reservationRepository;
 
     public NotificationService(UserRepository userRepository,
-                               OrderRepository orderRepository) {
+                               ReservationRepository reservationRepository) {
         this.userRepository = userRepository;
-        this.orderRepository = orderRepository;
+        this.reservationRepository = reservationRepository;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -41,7 +41,7 @@ public class NotificationService {
     }
 
     public SendMessage notifyUser(Long orderId) {
-        Orders order = orderRepository.findByOrderId(orderId);
+        Reservation order = reservationRepository.findByOrderId(orderId);
         String text = new Formatter().format("Ваше бронювання на %s %s було скасованно адміністратором",
                 order.getOrderTime(), order.getOrderDate()).toString();
         return prepareMessage(order.getUser().getChatId(), text);

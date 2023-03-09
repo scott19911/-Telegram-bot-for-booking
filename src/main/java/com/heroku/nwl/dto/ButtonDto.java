@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 import static com.heroku.nwl.constants.Constants.NULL;
+import static com.heroku.nwl.service.KeyboardService.FORMATTER;
 
 @Data
 public class ButtonDto {
@@ -24,17 +25,19 @@ public class ButtonDto {
     private Long reservationId;
     @JsonProperty("to")
     private String returnTo;
+    @JsonProperty("sId")
+    private Long serviceId;
 
     public void setCurrentDate(String currentDate) {
-        if (currentDate != null) this.currentDate = LocalDate.parse(currentDate);
+        if (currentDate != null) this.currentDate = LocalDate.parse(currentDate,FORMATTER);
     }
 
     public void setNextDate(String nextDate) {
-        if (!nextDate.equals(NULL)) this.nextDate = LocalDate.parse(nextDate);
+        if (!nextDate.equals(NULL)) this.nextDate = LocalDate.parse(nextDate,FORMATTER);
     }
 
     public void setPreviousDate(String previousDate) {
-        if (!previousDate.equals(NULL)) this.previousDate = LocalDate.parse(previousDate);
+        if (!previousDate.equals(NULL)) this.previousDate = LocalDate.parse(previousDate,FORMATTER);
     }
     public void setReservedTime(String time) {
         if (!time.equals(NULL)) this.reservedTime = LocalTime.parse(time);

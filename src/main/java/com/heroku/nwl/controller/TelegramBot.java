@@ -3,24 +3,26 @@ package com.heroku.nwl.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.heroku.nwl.Role;
 import com.heroku.nwl.config.BotConfig;
 import com.heroku.nwl.constants.Constants;
 import com.heroku.nwl.dto.ButtonDto;
+import com.heroku.nwl.model.Role;
+import com.heroku.nwl.model.User;
 import com.heroku.nwl.service.CallbackQueryHandler;
 import com.heroku.nwl.service.FileHandler;
 import com.heroku.nwl.service.MessageHandler;
 import com.heroku.nwl.service.NotificationService;
 import com.heroku.nwl.service.UserService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
+import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Document;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
@@ -84,13 +86,24 @@ public class TelegramBot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().getContact() != null) {
-            String text = userService.registerUser(update.getMessage());
+            User user = userService.registerUser(update.getMessage());
+            long chatId = update.getMessage().getChatId();
+            String text = String.format(
+                    Constants.USER_DATA,
+                    chatId,
+                    user.getFirstName(),
+                    user.getLastName(),
+                    user.getUserName(),
+                    user.getPhoneNumber());
             SendMessage message = SendMessage
                     .builder()
                     .chatId(String.valueOf(update.getMessage().getChatId()))
                     .text(text)
                     .build();
             executeMessage(message);
+            if (user.getRole().equals(Role.ADMIN)) {
+                sendFile(chatId);
+            }
         }
         if(update.hasMessage() && update.getMessage().getDocument() != null){
             SendMessage message = new SendMessage();
@@ -106,6 +119,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         if (update.hasMessage() && update.getMessage().hasText()) {
             executeMessage(messageHandler.getMessage(update));
         } else if (update.hasCallbackQuery()) {
+            System.out.println(update.getCallbackQuery().getData());
             SendMessage notify = notifyUserAboutCancelingReservation(update);
             EditMessageText editMessageText = callbackQueryHandler.getEditMessage(update);
             executeEditMessageText(editMessageText);
@@ -115,21 +129,21 @@ public class TelegramBot extends TelegramLongPollingBot {
             }
         }
     }
-public SendMessage receiveFile(Update update, SendMessage message){
-    Document document = update.getMessage().getDocument();
-    GetFile getFile = new GetFile();
-    getFile.setFileId(document.getFileId());
-    try {
-        org.telegram.telegrambots.meta.api.objects.File telegramFile = execute(getFile);
-        File file = downloadFile(telegramFile);
-        message.setText(fileHandler.fileHandler(document.getFileName(),file.getPath()));
-    } catch (TelegramApiException e) {
-        e.printStackTrace();
-    } catch (Exception e) {
-        throw new RuntimeException(e);
+    public SendMessage receiveFile(Update update, SendMessage message){
+        Document document = update.getMessage().getDocument();
+        GetFile getFile = new GetFile();
+        getFile.setFileId(document.getFileId());
+        try {
+            org.telegram.telegrambots.meta.api.objects.File telegramFile = execute(getFile);
+            File file = downloadFile(telegramFile);
+            message.setText(fileHandler.fileHandler(document.getFileName(),file.getPath()));
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return message;
     }
-    return message;
-}
     private void notifyAdmin(EditMessageText editMessageText, Update update) {
         String messageText = null;
         if (editMessageText.getText().startsWith("You are reserve ")){
@@ -179,6 +193,17 @@ public SendMessage receiveFile(Update update, SendMessage message){
             execute(message);
         } catch (TelegramApiException e) {
             log.error(ERROR_TEXT + e.getMessage());
+        }
+    }
+    private void sendFile(Long chatId){
+        SendDocument sendDocument = new SendDocument();
+        sendDocument.setChatId(String.valueOf(chatId));
+        InputFile inputFile = new InputFile(new File("settings.xlsx"));
+        sendDocument.setDocument(inputFile);
+        try {
+            execute(sendDocument);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
         }
     }
 

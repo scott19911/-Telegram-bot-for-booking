@@ -2,7 +2,7 @@ package com.heroku.nwl.service;
 
 
 import com.heroku.nwl.model.DayOffRepository;
-import com.heroku.nwl.model.OrderRepository;
+import com.heroku.nwl.model.ReservationRepository;
 import com.heroku.nwl.model.UserRepository;
 import com.heroku.nwl.model.WorkTimeSettingsRepository;
 import org.junit.jupiter.api.Test;
@@ -20,7 +20,7 @@ class WorkScheduleTest {
     @Autowired
     private DayOffRepository dayOffRepository;
     @Autowired
-    private OrderRepository orderRepository;
+    private ReservationRepository reservationRepository;
     @Autowired
     private UserRepository userRepository;
 

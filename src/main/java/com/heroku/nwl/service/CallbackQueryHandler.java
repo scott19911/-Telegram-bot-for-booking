@@ -7,8 +7,8 @@ import com.heroku.nwl.dto.ButtonDto;
 import com.heroku.nwl.dto.CalendarDayDto;
 import com.heroku.nwl.model.DayOff;
 import com.heroku.nwl.model.DayOffRepository;
-import com.heroku.nwl.model.OrderRepository;
-import com.heroku.nwl.model.Orders;
+import com.heroku.nwl.model.ReservationRepository;
+import com.heroku.nwl.model.Reservation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -30,9 +30,11 @@ import static com.heroku.nwl.constants.Commands.CHANGE_MONTH;
 import static com.heroku.nwl.constants.Commands.DELETE_RESERVE;
 import static com.heroku.nwl.constants.Commands.GO_BACK;
 import static com.heroku.nwl.constants.Commands.ORDER_TIME;
+import static com.heroku.nwl.constants.Commands.SELECT_SERVICE;
 import static com.heroku.nwl.constants.Commands.WORKDAY;
 import static com.heroku.nwl.constants.Constants.CHOOSE_DATE;
 import static com.heroku.nwl.constants.Constants.CHOOSE_DAY_OFF;
+import static com.heroku.nwl.constants.Constants.CHOOSE_SERVICE;
 import static com.heroku.nwl.constants.Constants.DATE_PATTERN;
 import static com.heroku.nwl.constants.Constants.DELETE_RESERVATION_MESSAGE;
 import static com.heroku.nwl.constants.Constants.ERROR;
@@ -49,7 +51,7 @@ public class CallbackQueryHandler {
     private final ReservationService reservationService;
     private final DayOffRepository dayOffRepository;
     private final KeyboardService keyboardService;
-    private final OrderRepository orderRepository;
+    private final ReservationRepository reservationRepository;
 
     public EditMessageText getEditMessage(Update update) {
         EditMessageText message;
@@ -77,6 +79,7 @@ public class CallbackQueryHandler {
             case DELETE_RESERVE -> getDeleteReservationMessage(buttonDto, chatId, messageId);
             case CANCEL_RESERVE -> canselReservation(buttonDto, chatId, messageId);
             case GO_BACK -> getPriviesMenuMessage(buttonDto, chatId, messageId);
+            case SELECT_SERVICE -> getServiceCatalog(buttonDto, chatId, messageId);
             default -> prepareEditMessageText(ERROR, chatId, messageId, null);
         };
         return message;
@@ -85,7 +88,7 @@ public class CallbackQueryHandler {
     private EditMessageText getChangeMonthMessage(ButtonDto buttonDto, Long chatId, Long messageId) {
         List<List<CalendarDayDto>> calendar = calendarService.getCalendar(buttonDto.getCurrentDate(), buttonDto.getReturnTo());
         InlineKeyboardMarkup keyboardMarkup = keyboardService.getCalendar(calendar, buttonDto.getCurrentDate());
-        return prepareEditMessageText(CHOOSE_DAY_OFF, chatId, messageId, keyboardMarkup);
+        return prepareEditMessageText(CHOOSE_DATE, chatId, messageId, keyboardMarkup);
     }
 
     private EditMessageText getCreateCalendarMessage(ButtonDto buttonDto, String text, long chatId, long messageId) {
@@ -107,7 +110,7 @@ public class CallbackQueryHandler {
         EditMessageText message;
         LocalDate orderDate = buttonDto.getCurrentDate();
         LocalTime orderTime = buttonDto.getReservedTime();
-        if (reservationService.createReservation(orderTime, orderDate, chatId)) {
+        if (reservationService.createReservation(orderTime, orderDate, chatId,buttonDto.getServiceId())) {
             message = prepareEditMessageText("You are reserve " + orderDate + " " + orderTime, chatId, messageId, null);
         } else {
             message = prepareEditMessageText("Sorry this time is already taken or you don't register", chatId, messageId, null);
@@ -116,7 +119,7 @@ public class CallbackQueryHandler {
     }
 
     private EditMessageText getDeleteReservationMessage(ButtonDto buttonDto, long chatId, long messageId) {
-        if (reservationService.deleteReservation(buttonDto.getReservationId())) {
+        if (reservationService.canselReservation(buttonDto.getReservationId())) {
             return prepareEditMessageText(
                     DELETE_RESERVATION_MESSAGE,
                     chatId,
@@ -149,6 +152,13 @@ public class CallbackQueryHandler {
                 messageId,
                 keyboardService.getAvailableTimeKeyboard(buttonDto));
     }
+    private EditMessageText getServiceCatalog(ButtonDto buttonDto,  long chatId, long messageId){
+        return prepareEditMessageText(
+                CHOOSE_SERVICE,
+                chatId,
+                messageId,
+                keyboardService.getServiceCatalog(buttonDto));
+    }
 
     private EditMessageText getPriviesMenuMessage(ButtonDto buttonDto, long chatId, long messageId) {
         EditMessageText message = prepareEditMessageText(ERROR, chatId, messageId, null);
@@ -166,8 +176,8 @@ public class CallbackQueryHandler {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public EditMessageText canselReservation(ButtonDto buttonDto, Long chatId, Long messageId) {
-        Orders order = orderRepository.findByOrderId(buttonDto.getReservationId());
-        reservationService.deleteReservation(buttonDto.getReservationId());
+        Reservation order = reservationRepository.findByOrderId(buttonDto.getReservationId());
+        reservationService.canselReservation(buttonDto.getReservationId());
         String text = "You are cansel reserve " + order.getOrderTime() + " " + order.getOrderDate();
         return prepareEditMessageText(text, chatId, messageId, keyboardService.getReservationOnDate(buttonDto.getCurrentDate()));
     }

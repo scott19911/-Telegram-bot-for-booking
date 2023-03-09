@@ -2,10 +2,12 @@ package com.heroku.nwl.service;
 
 import com.heroku.nwl.model.DayOff;
 import com.heroku.nwl.model.DayOffRepository;
-import com.heroku.nwl.model.OrderRepository;
-import com.heroku.nwl.model.Orders;
+import com.heroku.nwl.model.Reservation;
+import com.heroku.nwl.model.ReservationStatus;
+import com.heroku.nwl.model.ServiceCatalogRepository;
 import com.heroku.nwl.model.WorkTimeSettings;
 import com.heroku.nwl.model.WorkTimeSettingsRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,35 +19,35 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class WorkSchedule {
     public static final int ONE = 1;
     private static final int SHOW_NUMBER_OF_DAYS = 10;
     private final WorkTimeSettingsRepository workTimeSettingsRepository;
     private final DayOffRepository dayOffRepository;
-    private final OrderRepository orderRepository;
-
-    public WorkSchedule(WorkTimeSettingsRepository workTimeSettingsRepository, DayOffRepository dayOffRepository, OrderRepository orderRepository) {
-        this.workTimeSettingsRepository = workTimeSettingsRepository;
-        this.dayOffRepository = dayOffRepository;
-        this.orderRepository = orderRepository;
-    }
+    private final ReservationService reservationService;
+    private final ServiceCatalogRepository serviceCatalogRepository;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public List<LocalTime> getWorkTime(LocalDate date) {
+    public List<LocalTime> getWorkTime(LocalDate date, long serviceId) {
+        int timePerPerson = serviceCatalogRepository.findById(serviceId).get().getAverageTime();
         WorkTimeSettings workTimeSettings = workTimeSettingsRepository.findById(1L).orElse(new WorkTimeSettings());
-        List<Orders> ordersList = orderRepository.findByOrderDate(date);
-        List<LocalTime> reservedTime = getOrderTimeListFromOrders(ordersList);
+        List<Reservation> reservationList = reservationService.getReservationsByDateAndReservationStatus(date, ReservationStatus.ACTIVE);
         List<LocalTime> timePerDay = new ArrayList<>();
         LocalTime startTime = workTimeSettings.getOpenTime();
         LocalTime notAvailableTime = date.equals(LocalDate.now()) ? LocalTime.now() : LocalTime.of(0, 0);
-        while (startTime.plusMinutes(workTimeSettings.getTimePerPerson()).isBefore(workTimeSettings.getCloseTime().plusMinutes(ONE))) {
-            boolean inWorkingTime = startTime.plusMinutes(workTimeSettings.getTimePerPerson()).isBefore(workTimeSettings.getBreakFrom())
+        while (startTime.plusMinutes(timePerPerson).isBefore(workTimeSettings.getCloseTime().plusMinutes(ONE))) {
+            boolean inWorkingTime = startTime.plusMinutes(timePerPerson).isBefore(workTimeSettings.getBreakFrom())
                     || startTime.isAfter(workTimeSettings.getBreakTo())
                     || startTime.equals(workTimeSettings.getBreakTo());
-            if (!reservedTime.contains(startTime) && inWorkingTime && !reservedTime.contains(startTime) && startTime.isAfter(notAvailableTime)) {
+            if (availableTime(startTime,reservationList,timePerPerson) && inWorkingTime && startTime.isAfter(notAvailableTime)) {
                 timePerDay.add(startTime);
             }
-            startTime = startTime.plusMinutes(workTimeSettings.getTimePerPerson());
+            if (!availableTime(startTime,reservationList,timePerPerson)){
+                startTime = getEndTime(startTime,reservationList,timePerPerson);
+            } else {
+                startTime = startTime.plusMinutes(timePerPerson);
+            }
             if (startTime.isAfter(workTimeSettings.getBreakFrom()) && startTime.isBefore(workTimeSettings.getBreakTo())) {
                 startTime = workTimeSettings.getBreakTo();
             }
@@ -73,7 +75,28 @@ public class WorkSchedule {
         return list.stream().map(DayOff::getDayOffDate).collect(Collectors.toList());
     }
 
-    private List<LocalTime> getOrderTimeListFromOrders(List<Orders> ordersList) {
-        return ordersList.stream().map(Orders::getOrderTime).collect(Collectors.toList());
+    private boolean availableTime(LocalTime currentTime, List<Reservation> reservationList, int timePerPerson){
+      return getEndTime(currentTime, reservationList, timePerPerson) == null;
+    }
+    private LocalTime getEndTime(LocalTime currentTime, List<Reservation> reservationList, int timePerPerson){
+        for (Reservation reservation: reservationList
+        ) {
+            LocalTime startTime = reservation.getOrderTime();
+            LocalTime endTime = reservation.getEndTime();
+            if (currentTime.equals(startTime)){
+                return endTime;
+            }
+            if(currentTime.isBefore(startTime)){
+                if(currentTime.plusMinutes(timePerPerson).isAfter(startTime)){
+                    return endTime;
+                }
+            }
+            if (currentTime.isAfter(startTime)){
+                if(currentTime.plusMinutes(timePerPerson).isBefore(endTime)){
+                    return endTime;
+                }
+            }
+        }
+        return null;
     }
 }

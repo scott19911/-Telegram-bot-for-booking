@@ -1,6 +1,5 @@
 package com.heroku.nwl.model;
 
-import com.heroku.nwl.Role;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -21,7 +20,7 @@ public class User {
     private String userName;
     private String phoneNumber;
     @OneToMany(mappedBy = "orderId")
-    private List<Orders> orders;
+    private List<Reservation> orders;
     @Enumerated(value = EnumType.STRING)
     private Role role;
 }

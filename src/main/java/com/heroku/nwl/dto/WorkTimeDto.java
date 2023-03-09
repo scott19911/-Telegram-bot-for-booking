@@ -1,6 +1,7 @@
 package com.heroku.nwl.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.heroku.nwl.model.WorkTimeSettings;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -24,6 +25,7 @@ public class WorkTimeDto {
             this.openTime = LocalTime.parse(openTime);
         } catch (DateTimeParseException exception){
             log.error(exception.getMessage());
+            throw new RuntimeException();
         }
     }
 
@@ -32,6 +34,7 @@ public class WorkTimeDto {
             this.closeTime = LocalTime.parse(closeTime);
         } catch (DateTimeParseException exception){
             log.error(exception.getMessage());
+            throw new RuntimeException();
         }
     }
 
@@ -40,6 +43,7 @@ public class WorkTimeDto {
             this.startBreak = LocalTime.parse(startBreak);
         } catch (DateTimeParseException exception){
             log.error(exception.getMessage());
+            throw new RuntimeException();
         }
     }
 
@@ -48,6 +52,15 @@ public class WorkTimeDto {
             this.endBreak = LocalTime.parse(endBreak);
         } catch (DateTimeParseException exception){
             log.error(exception.getMessage());
+            throw new RuntimeException();
         }
+    }
+    public WorkTimeSettings getWorkTimeSettings(){
+        WorkTimeSettings workTimeSettings = new WorkTimeSettings();
+        workTimeSettings.setCloseTime(closeTime);
+        workTimeSettings.setOpenTime(openTime);
+        workTimeSettings.setBreakFrom(startBreak);
+        workTimeSettings.setBreakTo(endBreak);
+        return workTimeSettings;
     }
 }
