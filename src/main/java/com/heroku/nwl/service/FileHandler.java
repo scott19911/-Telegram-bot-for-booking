@@ -6,11 +6,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.heroku.nwl.constants.Constants;
 import com.heroku.nwl.dto.ServiceCatalogDto;
-import com.heroku.nwl.dto.WorkTimeDto;
+import com.heroku.nwl.dto.WorkSettingsDto;
 import com.heroku.nwl.model.ServiceCatalog;
 import com.heroku.nwl.model.ServiceCatalogRepository;
-import com.heroku.nwl.model.WorkTimeSettings;
-import com.heroku.nwl.model.WorkTimeSettingsRepository;
+import com.heroku.nwl.model.WorkSettings;
+import com.heroku.nwl.model.WorkSettingsRepository;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,7 +27,7 @@ import java.util.Map;
 @AllArgsConstructor
 public class FileHandler {
     private final ServiceCatalogRepository serviceCatalogRepository;
-    private final WorkTimeSettingsRepository workTimeSettingsRepository;
+    private final WorkSettingsRepository workSettingsRepository;
 
     public String fileHandler(String fileName, String path) {
         String message;
@@ -68,13 +68,13 @@ public class FileHandler {
     }
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public String saveSettings(String path) {
-        WorkTimeSettings workTimeSettings = getWorkTimeFromXlsxFile(path);
+        WorkSettings workSettings = getWorkSettingsFromXlsxFile(path);
         String result = Constants.SUCCESS_FILE_SETTINGS;
-        if(workTimeSettings == null){
-            result = Constants.ERROR_FILE;
+        if(workSettings == null){
+            return Constants.ERROR_FILE;
         }
-        workTimeSettings.setId(1L);
-        workTimeSettingsRepository.save(workTimeSettings);
+        workSettings.setId(1L);
+        workSettingsRepository.save(workSettings);
         if (!saveServiceCatalog(path)){
             result = Constants.ERROR_FILE;
         }
@@ -90,23 +90,26 @@ public class FileHandler {
             log.error(e.getMessage());
             return null;
         }
-        if(!checkAllFields(serviceCatalogs)){
+        if(!checkServiceFields(serviceCatalogs)){
             return null;
         }
         return serviceCatalogs;
     }
 
-    private WorkTimeSettings getWorkTimeFromXlsxFile(String path) {
+    private WorkSettings getWorkSettingsFromXlsxFile(String path) {
         ObjectMapper objectMapper = new ObjectMapper();
-        List<WorkTimeDto> workTimeDto;
+        List<WorkSettingsDto> workSettingsDtos;
         try {
-            workTimeDto = objectMapper.readValue(getJsonFromXLSX(path, 3,0), new TypeReference<>() {
+            workSettingsDtos = objectMapper.readValue(getJsonFromXLSX(path, 9,0), new TypeReference<>() {
             });
         } catch (JsonProcessingException e) {
             log.error(e.getMessage());
             return null;
         }
-        return workTimeDto.get(0).getWorkTimeSettings();
+        if (!checkSettingFields(workSettingsDtos.get(0).getWorkTimeSettings())){
+            return null;
+        }
+        return workSettingsDtos.get(0).getWorkTimeSettings();
     }
 
     public String getJsonFromXLSX (String files,int lastColumn, int sheetIndex) throws JsonProcessingException {
@@ -116,30 +119,35 @@ public class FileHandler {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        List<Map<String, Object>> data = new ArrayList<>();
+        List<Map<String, String>> data = new ArrayList<>();
         int firstRow = 1;
         int lastRow = workbook.getWorksheets().get(sheetIndex).getCells().getMaxDataRow();
         for (int i = firstRow; i <= lastRow; i++) {
-            Map<String, Object> rowData = new HashMap<>();
+            Map<String, String> rowData = new HashMap<>();
             for (int j = 0; j <= lastColumn; j++) {
                 String columnName = workbook.getWorksheets().get(sheetIndex).getCells().get(0, j).getStringValue();
-                Object cellValue = workbook.getWorksheets().get(sheetIndex).getCells().get(i, j).getValue();
-                if(cellValue == null){
-                    i = lastRow;
+                String cellValue = workbook.getWorksheets().get(sheetIndex).getCells().get(i, j).getStringValue();
+                if(j == 0 && cellValue.isBlank()){
+                    i = lastRow + 1;
+                    j = lastColumn + 1;
+                    rowData = null;
                 } else {
                     rowData.put(columnName, cellValue);
                 }
             }
-            if (!rowData.isEmpty()) {
+            if (rowData != null) {
                 data.add(rowData);
             }
         }
         ObjectMapper objectMapper = new ObjectMapper();
         return objectMapper.writeValueAsString(data);
     }
-    private boolean checkAllFields(List<ServiceCatalogDto> serviceCatalogDtos){
+    private boolean checkServiceFields(List<ServiceCatalogDto> serviceCatalogDtos){
         for (ServiceCatalogDto service: serviceCatalogDtos
              ) {
+            if(service.getServiceName() == null){
+                return false;
+            }
             if(service.getServiceName().isBlank()){
                 return false;
             }
@@ -148,6 +156,12 @@ public class FileHandler {
             }
         }
         return true;
+    }
+    private boolean checkSettingFields(WorkSettings settings){
+        return !settings.getCity().isBlank()
+                && !settings.getBuilding().isBlank()
+                && !settings.getPhoneNumber().isBlank()
+                && !settings.getStreet().isBlank();
     }
     private List<ServiceCatalog> getServiceCatalogFromDto(List<ServiceCatalogDto> dtos) {
         List<ServiceCatalog> catalogs = new ArrayList<>();

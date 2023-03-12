@@ -35,6 +35,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.heroku.nwl.constants.Commands.CANCEL_RESERVE;
+import static com.heroku.nwl.constants.Constants.HELP_TEXT;
+import static com.heroku.nwl.constants.Constants.MESSAGE_START_WORK;
 
 @Slf4j
 @Controller
@@ -66,6 +68,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         listofCommands.add(new BotCommand("admin_calendar_reserve", "Перегляд бронювань за датою"));
         listofCommands.add(new BotCommand("reserve", "Найближчі 10 робочих днів для бронювання"));
         listofCommands.add(new BotCommand("my_reserve", "Перегляд ваши активних бронювань"));
+        listofCommands.add(new BotCommand("contact", "Контактна інформація"));
         try {
             this.execute(new SetMyCommands(listofCommands, new BotCommandScopeDefault(), null));
         } catch (TelegramApiException e) {
@@ -101,7 +104,9 @@ public class TelegramBot extends TelegramLongPollingBot {
                     .text(text)
                     .build();
             executeMessage(message);
+            executeMessage(messageHandler.prepareSendMessage(chatId,HELP_TEXT,null));
             if (user.getRole().equals(Role.ADMIN)) {
+                executeMessage(messageHandler.prepareSendMessage(chatId,MESSAGE_START_WORK,null));
                 sendFile(chatId);
             }
         }

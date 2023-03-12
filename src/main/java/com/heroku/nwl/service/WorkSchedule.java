@@ -5,8 +5,8 @@ import com.heroku.nwl.model.DayOffRepository;
 import com.heroku.nwl.model.Reservation;
 import com.heroku.nwl.model.ReservationStatus;
 import com.heroku.nwl.model.ServiceCatalogRepository;
-import com.heroku.nwl.model.WorkTimeSettings;
-import com.heroku.nwl.model.WorkTimeSettingsRepository;
+import com.heroku.nwl.model.WorkSettings;
+import com.heroku.nwl.model.WorkSettingsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 public class WorkSchedule {
     public static final int ONE = 1;
     private static final int SHOW_NUMBER_OF_DAYS = 10;
-    private final WorkTimeSettingsRepository workTimeSettingsRepository;
+    private final WorkSettingsRepository workSettingsRepository;
     private final DayOffRepository dayOffRepository;
     private final ReservationService reservationService;
     private final ServiceCatalogRepository serviceCatalogRepository;
@@ -31,15 +31,15 @@ public class WorkSchedule {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<LocalTime> getWorkTime(LocalDate date, long serviceId) {
         int timePerPerson = serviceCatalogRepository.findById(serviceId).get().getAverageTime();
-        WorkTimeSettings workTimeSettings = workTimeSettingsRepository.findById(1L).orElse(new WorkTimeSettings());
+        WorkSettings workSettings = workSettingsRepository.findById(1L).orElse(new WorkSettings());
         List<Reservation> reservationList = reservationService.getReservationsByDateAndReservationStatus(date, ReservationStatus.ACTIVE);
         List<LocalTime> timePerDay = new ArrayList<>();
-        LocalTime startTime = workTimeSettings.getOpenTime();
+        LocalTime startTime = workSettings.getOpenTime();
         LocalTime notAvailableTime = date.equals(LocalDate.now()) ? LocalTime.now() : LocalTime.of(0, 0);
-        while (startTime.plusMinutes(timePerPerson).isBefore(workTimeSettings.getCloseTime().plusMinutes(ONE))) {
-            boolean inWorkingTime = startTime.plusMinutes(timePerPerson).isBefore(workTimeSettings.getBreakFrom())
-                    || startTime.isAfter(workTimeSettings.getBreakTo())
-                    || startTime.equals(workTimeSettings.getBreakTo());
+        while (startTime.plusMinutes(timePerPerson).isBefore(workSettings.getCloseTime().plusMinutes(ONE))) {
+            boolean inWorkingTime = startTime.plusMinutes(timePerPerson).isBefore(workSettings.getBreakFrom())
+                    || startTime.isAfter(workSettings.getBreakTo())
+                    || startTime.equals(workSettings.getBreakTo());
             if (availableTime(startTime,reservationList,timePerPerson) && inWorkingTime && startTime.isAfter(notAvailableTime)) {
                 timePerDay.add(startTime);
             }
@@ -48,8 +48,8 @@ public class WorkSchedule {
             } else {
                 startTime = startTime.plusMinutes(timePerPerson);
             }
-            if (startTime.isAfter(workTimeSettings.getBreakFrom()) && startTime.isBefore(workTimeSettings.getBreakTo())) {
-                startTime = workTimeSettings.getBreakTo();
+            if (startTime.isAfter(workSettings.getBreakFrom()) && startTime.isBefore(workSettings.getBreakTo())) {
+                startTime = workSettings.getBreakTo();
             }
         }
         return timePerDay;

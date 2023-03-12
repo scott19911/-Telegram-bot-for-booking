@@ -3,6 +3,7 @@ package com.heroku.nwl.service;
 import com.heroku.nwl.constants.Commands;
 import com.heroku.nwl.dto.CalendarDayDto;
 import com.vdurmont.emoji.EmojiParser;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -17,28 +18,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.heroku.nwl.constants.Commands.ALL_RESERVATION_ON_DATE;
+import static com.heroku.nwl.constants.Constants.HELP_TEXT;
 import static com.heroku.nwl.service.Calendar.ADD_DAY_OFF;
-
+@RequiredArgsConstructor
 @Slf4j
 @Service
 public class MessageHandler {
-    public static final String HELP_TEXT = """
-            This bot is created to demonstrate Spring capabilities.
 
-            You can execute commands from the main menu on the left or by typing a command:
-
-            Type /start to see a welcome message
-
-            Type /mydata to see data stored about yourself
-
-            Type /help to see this message again""";
     private final Calendar calendarService;
     private final KeyboardService keyboardService;
-
-    public MessageHandler(Calendar calendarService, KeyboardService keyboardService) {
-        this.calendarService = calendarService;
-        this.keyboardService = keyboardService;
-    }
+    private final UserService userService;
 
     public SendMessage getMessage(Update update) {
         SendMessage message;
@@ -63,6 +52,7 @@ public class MessageHandler {
             case Commands.SHOW_USER_RESERVATION ->
                     message = prepareSendMessage(chatId, "Ваші бронювання, натисніть на необхідну заявку щоб відмінити", keyboardService.getUserReservation(chatId));
             case Commands.CHAT_ID -> message = prepareSendMessage(chatId, "Ваш Id= " + chatId, null);
+            case Commands.CONTACTS -> message = prepareSendMessage(chatId,userService.getContact(),null);
             default -> message = prepareSendMessage(chatId, "Sorry, command was not recognized", null);
         }
         return message;
@@ -91,7 +81,7 @@ public class MessageHandler {
         return message;
     }
 
-    private SendMessage prepareSendMessage(long chatId, String textToSend, InlineKeyboardMarkup replyKeyboardMarkup) {
+    public SendMessage prepareSendMessage(long chatId, String textToSend, InlineKeyboardMarkup replyKeyboardMarkup) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText(textToSend);

@@ -24,4 +24,5 @@ public class Commands {
     public static final String CANCEL_RESERVE = "cR";
     public static final String ALL_RESERVATION_ON_DATE = "aR";
     public static final String GO_BACK = "GO";
+    public static final String CONTACTS = "/contact";
 }
