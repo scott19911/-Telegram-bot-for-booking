@@ -6,8 +6,9 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
+import static com.heroku.nwl.constants.Constants.FORMATTER;
 import static com.heroku.nwl.constants.Constants.NULL;
-import static com.heroku.nwl.service.KeyboardService.FORMATTER;
+
 
 @Data
 public class ButtonDto {

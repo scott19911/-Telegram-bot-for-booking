@@ -1,5 +1,6 @@
 package com.heroku.nwl.service;
 
+import com.heroku.nwl.config.CustomBotException;
 import com.heroku.nwl.model.DayOff;
 import com.heroku.nwl.model.DayOffRepository;
 import com.heroku.nwl.model.Reservation;
@@ -8,6 +9,7 @@ import com.heroku.nwl.model.ServiceCatalogRepository;
 import com.heroku.nwl.model.WorkSettings;
 import com.heroku.nwl.model.WorkSettingsRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static com.heroku.nwl.constants.ErrorMessage.ERROR_SERVICE_NOT_AVAILABLE;
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class WorkSchedule {
@@ -29,9 +33,13 @@ public class WorkSchedule {
     private final ServiceCatalogRepository serviceCatalogRepository;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public List<LocalTime> getWorkTime(LocalDate date, long serviceId) {
+    public List<LocalTime> getWorkTime(LocalDate date, long serviceId) throws CustomBotException {
+        WorkSettings workSettings = workSettingsRepository.findById(1L).orElse(null);
+        if (workSettings == null){
+            log.info(ERROR_SERVICE_NOT_AVAILABLE);
+            throw new CustomBotException(ERROR_SERVICE_NOT_AVAILABLE);
+        }
         int timePerPerson = serviceCatalogRepository.findById(serviceId).get().getAverageTime();
-        WorkSettings workSettings = workSettingsRepository.findById(1L).orElse(new WorkSettings());
         List<Reservation> reservationList = reservationService.getReservationsByDateAndReservationStatus(date, ReservationStatus.ACTIVE);
         List<LocalTime> timePerDay = new ArrayList<>();
         LocalTime startTime = workSettings.getOpenTime();

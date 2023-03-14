@@ -22,7 +22,8 @@ public class Commands {
     public static final String ORDER_TIME = "rT";
     public static final String DELETE_RESERVE = "dR";
     public static final String CANCEL_RESERVE = "cR";
-    public static final String ALL_RESERVATION_ON_DATE = "aR";
+    public static final String ALL_RESERVATION = "aR";
     public static final String GO_BACK = "GO";
     public static final String CONTACTS = "/contact";
+    public static final String SEND_MESSAGE = "/send";
 }

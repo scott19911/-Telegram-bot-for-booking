@@ -1,5 +1,6 @@
 package com.heroku.nwl.service;
 
+import com.heroku.nwl.config.CustomBotException;
 import com.heroku.nwl.constants.Constants;
 import com.heroku.nwl.model.ReservationRepository;
 import com.heroku.nwl.model.Reservation;
@@ -16,6 +17,8 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
+import static com.heroku.nwl.constants.ErrorMessage.ERROR_SERVICE_NOT_AVAILABLE;
+
 
 @Service
 @RequiredArgsConstructor
@@ -25,7 +28,7 @@ public class ReservationService {
     private final ServiceCatalogRepository serviceCatalogRepository;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public boolean createReservation(LocalTime reserveTime, LocalDate reserveDate, Long chatId,Long serviceCatalogId) {
+    public boolean createReservation(LocalTime reserveTime, LocalDate reserveDate, Long chatId,Long serviceCatalogId) throws CustomBotException {
         Reservation reservation = reservationRepository.findByOrderDateAndOrderTime(reserveDate, reserveTime);
         if ((reservation != null
                 && reservation.
@@ -35,7 +38,10 @@ public class ReservationService {
             return false;
         }
         Reservation newReservation = new Reservation();
-        ServiceCatalog serviceCatalog = serviceCatalogRepository.findById(serviceCatalogId).get();
+        ServiceCatalog serviceCatalog = serviceCatalogRepository.findById(serviceCatalogId).orElse(null);
+        if (serviceCatalog == null){
+            throw new CustomBotException(ERROR_SERVICE_NOT_AVAILABLE);
+        }
         newReservation.setOrderTime(reserveTime);
         newReservation.setOrderDate(reserveDate);
         newReservation.setServiceCatalog(serviceCatalog);

@@ -2,6 +2,7 @@ package com.heroku.nwl.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.heroku.nwl.config.CustomBotException;
 import com.heroku.nwl.dto.ButtonDto;
 import com.heroku.nwl.dto.CalendarDayDto;
 import com.heroku.nwl.model.Reservation;
@@ -18,14 +19,13 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Formatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.heroku.nwl.constants.Commands.ALL_RESERVATION_ON_DATE;
+import static com.heroku.nwl.constants.Commands.ALL_RESERVATION;
 import static com.heroku.nwl.constants.Commands.AVAILABLE_DATE_TO_RESERVE;
 import static com.heroku.nwl.constants.Commands.CANCEL_RESERVE;
 import static com.heroku.nwl.constants.Commands.CHANGE_MONTH;
@@ -40,18 +40,26 @@ import static com.heroku.nwl.constants.Commands.JSON_COMMAND_SELECT_SERVICE;
 import static com.heroku.nwl.constants.Commands.ORDER_TIME;
 import static com.heroku.nwl.constants.Commands.SELECT_SERVICE;
 import static com.heroku.nwl.constants.Commands.WORKDAY;
+import static com.heroku.nwl.constants.Constants.ADD_DAY_OFF;
 import static com.heroku.nwl.constants.Constants.BACK;
+import static com.heroku.nwl.constants.Constants.DOT;
+import static com.heroku.nwl.constants.Constants.DOT_ZERO;
+import static com.heroku.nwl.constants.Constants.EMPTY_DATA;
+import static com.heroku.nwl.constants.Constants.FORMATTER;
+import static com.heroku.nwl.constants.Constants.LEFT_ARROW;
 import static com.heroku.nwl.constants.Constants.NEXT;
 import static com.heroku.nwl.constants.Constants.PRIVIES;
+import static com.heroku.nwl.constants.Constants.RESERVE_AT;
+import static com.heroku.nwl.constants.Constants.RIGHT_ARROW;
 import static com.heroku.nwl.constants.Constants.SERVICE_BUTTON_TEXT;
-import static com.heroku.nwl.service.Calendar.ADD_DAY_OFF;
-import static com.heroku.nwl.service.Calendar.EMPTY_DATA;
-import static com.heroku.nwl.service.Calendar.WEEK_DAYS;
+import static com.heroku.nwl.constants.Constants.WEEK_DAYS;
+import static com.heroku.nwl.constants.ErrorMessage.ERROR_SERVICE_NOT_AVAILABLE;
+
 @RequiredArgsConstructor
 @Service
 public class KeyboardService {
 
-    public static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("ddMMyy");
+
     private final WorkSchedule workSchedule;
     private final ReservationService reservationService;
     private final ServiceCatalogRepository serviceCatalogRepository;
@@ -65,9 +73,9 @@ public class KeyboardService {
         for (int i = 0; i < workDays.size(); i++) {
             LocalDate date = workDays.get(i);
             String month = date.getMonth().getValue() < 10 ?
-                    ".0" + date.getMonth().getValue() : "." + date.getMonth().getValue();
+                    DOT_ZERO + date.getMonth().getValue() : DOT + date.getMonth().getValue();
             String buttonText = WEEK_DAYS[date.getDayOfWeek().getValue() - 1]
-                    + " " + date.getDayOfMonth() + month;
+                    + EMPTY_DATA + date.getDayOfMonth() + month;
             Map<String, String> navigateDate = getNextDate(workDays, i);
             String outputData = String.valueOf(new Formatter().format(
                     JSON_COMMAND_NAVIGATE_DATA, SELECT_SERVICE,
@@ -80,14 +88,13 @@ public class KeyboardService {
                 secondLine.add(getInlineKeyboardButton(buttonText, outputData));
             }
         }
-
         rowList.add(firstLine);
         rowList.add(secondLine);
         inlineKeyboardMarkup.setKeyboard(rowList);
         return inlineKeyboardMarkup;
     }
 
-    public InlineKeyboardMarkup getAvailableTimeKeyboard(ButtonDto dto) {
+    public InlineKeyboardMarkup getAvailableTimeKeyboard(ButtonDto dto) throws CustomBotException {
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         List<LocalTime> workTime = workSchedule.getWorkTime(dto.getCurrentDate(), dto.getServiceId());
         List<InlineKeyboardButton> navigateButtons = new ArrayList<>();
@@ -102,7 +109,7 @@ public class KeyboardService {
                     navigateDate.get(PRIVIES),
                     navigateDate.get(NEXT),
                     dto.getServiceId()));
-            navigateButtons.add(getInlineKeyboardButton("<", outputData));
+            navigateButtons.add(getInlineKeyboardButton(LEFT_ARROW, outputData));
         }
         if (dto.getNextDate() != null) {
             int index = workDays.indexOf(dto.getNextDate());
@@ -113,13 +120,13 @@ public class KeyboardService {
                     navigateDate.get(PRIVIES),
                     navigateDate.get(NEXT),
                     dto.getServiceId()));
-            navigateButtons.add(getInlineKeyboardButton(">", outputData));
+            navigateButtons.add(getInlineKeyboardButton(RIGHT_ARROW, outputData));
         }
         rowList.add(navigateButtons);
         for (LocalTime time : workTime
         ) {
             List<InlineKeyboardButton> buttons = new ArrayList<>();
-            String buttonText = "reserve at " + time;
+            String buttonText = RESERVE_AT + time;
             String outputData = String.valueOf(new Formatter().format(
                     JSON_COMMAND_DATA_TIME, ORDER_TIME,
                     dto.getCurrentDate().format(FORMATTER),
@@ -167,8 +174,7 @@ public class KeyboardService {
             buttonDto.setCommand(ADD_DAY_OFF);
         }
         String command = buttonDto.getCommand();
-
-        String yearMonth = date.getMonth() + " " + date.getYear();
+        String yearMonth = date.getMonth() + EMPTY_DATA + date.getYear();
         yearMonthRow.add(getInlineKeyboardButton(yearMonth, EMPTY_DATA));
         String priviesMonth =  String.valueOf(
                 new Formatter()
@@ -182,9 +188,9 @@ public class KeyboardService {
                                 CHANGE_MONTH,
                                 date.plusMonths(1).format(FORMATTER),
                                 command));
-        navigateRow.add(getInlineKeyboardButton("<",priviesMonth));
+        navigateRow.add(getInlineKeyboardButton(LEFT_ARROW,priviesMonth));
         navigateRow.add(getInlineKeyboardButton(EMPTY_DATA, EMPTY_DATA));
-        navigateRow.add(getInlineKeyboardButton(">", nextMonth));
+        navigateRow.add(getInlineKeyboardButton(RIGHT_ARROW, nextMonth));
         List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
         rowList.add(yearMonthRow);
         rowList.add(getDayOfWeekButton());
@@ -216,18 +222,18 @@ public class KeyboardService {
             String outputData = String.valueOf(new Formatter().format(
                     JSON_COMMAND_CANCEL_RESERVATION, CANCEL_RESERVE,
                     order.getOrderId(), date.format(FORMATTER)));
-            String text = order.getOrderTime() + " "
-                    + order.getOrderDate() + " "
-                    + order.getUser().getFirstName() + " "
+            String text = order.getOrderTime() + EMPTY_DATA
+                    + order.getOrderDate() + EMPTY_DATA
+                    + order.getUser().getFirstName() + EMPTY_DATA
                     + order.getUser().getPhoneNumber();
             if (!order.getReservationStatus().equals(ReservationStatus.ACTIVE)) {
                 outputData = EMPTY_DATA;
-                text = EmojiParser.parseToUnicode(":x:") + " " + text;
+                text = EmojiParser.parseToUnicode(":x:") + EMPTY_DATA + text;
             }
             buttons.add(getInlineKeyboardButton(text, outputData));
             rowList.add(buttons);
         }
-        rowList.add(getBackButton(ALL_RESERVATION_ON_DATE, date));
+        rowList.add(getBackButton(ALL_RESERVATION, date));
         inlineKeyboardMarkup.setKeyboard(rowList);
         return inlineKeyboardMarkup;
     }
@@ -242,7 +248,7 @@ public class KeyboardService {
                     JSON_COMMAND_RESERVATION, DELETE_RESERVE,
                     order.getOrderId(), order.getOrderDate().format(FORMATTER), order.getOrderTime()));
             List<InlineKeyboardButton> buttons = new ArrayList<>();
-            buttons.add(getInlineKeyboardButton(order.getOrderTime() + " " + order.getOrderDate(), outputData));
+            buttons.add(getInlineKeyboardButton(order.getOrderTime() + EMPTY_DATA + order.getOrderDate(), outputData));
             rowList.add(buttons);
         }
         inlineKeyboardMarkup.setKeyboard(rowList);
@@ -264,8 +270,11 @@ public class KeyboardService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public InlineKeyboardMarkup getServiceCatalog(ButtonDto buttonDto) {
+    public InlineKeyboardMarkup getServiceCatalog(ButtonDto buttonDto) throws CustomBotException {
         List<ServiceCatalog> serviceCatalogs = serviceCatalogRepository.findAllByActiveService(true);
+        if (serviceCatalogs.isEmpty()){
+            throw new CustomBotException(ERROR_SERVICE_NOT_AVAILABLE);
+        }
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
         if (serviceCatalogs.size() == 1) {

@@ -4,7 +4,9 @@ import com.aspose.cells.Workbook;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.heroku.nwl.config.CustomBotException;
 import com.heroku.nwl.constants.Constants;
+import com.heroku.nwl.constants.ErrorMessage;
 import com.heroku.nwl.dto.ServiceCatalogDto;
 import com.heroku.nwl.dto.WorkSettingsDto;
 import com.heroku.nwl.model.ServiceCatalog;
@@ -22,6 +24,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.heroku.nwl.constants.Constants.SERVICE_CATALOG_COLUMNS;
+import static com.heroku.nwl.constants.Constants.SERVICE_CATALOG_SHEET_INDEX;
+import static com.heroku.nwl.constants.Constants.WORK_SETTINGS_COLUMNS;
+import static com.heroku.nwl.constants.Constants.WORK_SETTINGS_SHEET_INDEX;
+
 @Slf4j
 @Service
 @AllArgsConstructor
@@ -29,25 +36,27 @@ public class FileHandler {
     private final ServiceCatalogRepository serviceCatalogRepository;
     private final WorkSettingsRepository workSettingsRepository;
 
-    public String fileHandler(String fileName, String path) {
+    public String fileHandler(String fileName, String path) throws CustomBotException {
         String message;
         if (fileName.equals(Constants.FILE_SETTINGS)) {
             message = saveSettings(path);
         } else {
-            message = Constants.ERROR;
+            log.info(ErrorMessage.ERROR_WRONG_FILE_NAME + fileName);
+            throw new CustomBotException(ErrorMessage.ERROR_WRONG_FILE_NAME);
         }
         return message;
     }
 
-    private boolean saveServiceCatalog(String path) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean saveServiceCatalog(String path) {
         List<ServiceCatalog> serviceCatalog = getServiceCatalogFromDto(getServiceCatalogFromXlsxFile(path));
-        if(serviceCatalog == null){
+        if (serviceCatalog == null) {
             return false;
         }
         List<ServiceCatalog> currentCatalog = serviceCatalogRepository.findAll();
         currentCatalog.removeAll(serviceCatalog);
-        for (ServiceCatalog service: currentCatalog
-             ) {
+        for (ServiceCatalog service : currentCatalog
+        ) {
             service.setActiveService(false);
             serviceCatalogRepository.save(service);
         }
@@ -67,16 +76,16 @@ public class FileHandler {
         return true;
     }
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public String saveSettings(String path) {
+    public String saveSettings(String path) throws CustomBotException {
         WorkSettings workSettings = getWorkSettingsFromXlsxFile(path);
         String result = Constants.SUCCESS_FILE_SETTINGS;
         if(workSettings == null){
-            return Constants.ERROR_FILE;
+            throw new CustomBotException(Constants.ERROR_FILE);
         }
         workSettings.setId(1L);
         workSettingsRepository.save(workSettings);
         if (!saveServiceCatalog(path)){
-            result = Constants.ERROR_FILE;
+            throw new CustomBotException(Constants.ERROR_FILE);
         }
         return result;
     }
@@ -84,8 +93,9 @@ public class FileHandler {
         ObjectMapper objectMapper = new ObjectMapper();
         List<ServiceCatalogDto> serviceCatalogs;
         try {
-            serviceCatalogs = objectMapper.readValue(getJsonFromXLSX(path, 2, 1), new TypeReference<>() {
-            });
+            serviceCatalogs = objectMapper.readValue(
+                    getJsonFromXLSX(path, SERVICE_CATALOG_COLUMNS, SERVICE_CATALOG_SHEET_INDEX),
+                    new TypeReference<>() {});
         } catch (JsonProcessingException e) {
             log.error(e.getMessage());
             return null;
@@ -100,7 +110,9 @@ public class FileHandler {
         ObjectMapper objectMapper = new ObjectMapper();
         List<WorkSettingsDto> workSettingsDtos;
         try {
-            workSettingsDtos = objectMapper.readValue(getJsonFromXLSX(path, 9,0), new TypeReference<>() {
+            workSettingsDtos = objectMapper.readValue(
+                    getJsonFromXLSX(path, WORK_SETTINGS_COLUMNS,WORK_SETTINGS_SHEET_INDEX),
+                    new TypeReference<>() {
             });
         } catch (JsonProcessingException e) {
             log.error(e.getMessage());
