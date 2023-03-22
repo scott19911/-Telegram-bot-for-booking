@@ -11,10 +11,10 @@ import com.heroku.nwl.constants.ErrorMessage;
 import com.heroku.nwl.dto.ButtonDto;
 import com.heroku.nwl.model.Role;
 import com.heroku.nwl.model.User;
-import com.heroku.nwl.service.CallbackQueryHandler;
-import com.heroku.nwl.service.FileHandler;
-import com.heroku.nwl.service.MessageHandler;
 import com.heroku.nwl.service.NotificationService;
+import com.heroku.nwl.service.implementation.CallbackQueryHandler;
+import com.heroku.nwl.service.implementation.FileHandler;
+import com.heroku.nwl.service.implementation.MessageHandler;
 import com.heroku.nwl.service.ReservationService;
 import com.heroku.nwl.service.UserService;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +35,6 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
 import java.io.InputStream;
-import java.net.URL;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -58,17 +57,20 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final NotificationService notificationService;
     private final FileHandler fileHandler;
     private final UserService userService;
-    private final ReservationService reservationService;
+
 
     public TelegramBot(BotConfig config,
-                       CallbackQueryHandler callbackQueryHandler, MessageHandler messageHandler, NotificationService notificationService, FileHandler fileHandler, UserService userService, ReservationService reservationService) {
+                       CallbackQueryHandler callbackQueryHandler,
+                       MessageHandler messageHandler,
+                       NotificationService notificationService,
+                       FileHandler fileHandler,
+                       UserService userService) {
         this.config = config;
         this.callbackQueryHandler = callbackQueryHandler;
         this.messageHandler = messageHandler;
         this.notificationService = notificationService;
         this.fileHandler = fileHandler;
         this.userService = userService;
-        this.reservationService = reservationService;
         setBotMenu();
     }
 

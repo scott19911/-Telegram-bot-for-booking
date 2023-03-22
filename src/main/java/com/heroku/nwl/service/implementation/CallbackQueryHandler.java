@@ -1,4 +1,4 @@
-package com.heroku.nwl.service;
+package com.heroku.nwl.service.implementation;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,6 +12,10 @@ import com.heroku.nwl.model.Reservation;
 import com.heroku.nwl.model.ReservationRepository;
 import com.heroku.nwl.model.ReservationStatus;
 import com.heroku.nwl.model.Role;
+import com.heroku.nwl.service.CalendarService;
+import com.heroku.nwl.service.KeyboardService;
+import com.heroku.nwl.service.ReservationService;
+import com.heroku.nwl.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -57,7 +61,7 @@ import static com.heroku.nwl.constants.ErrorMessage.ERROR_PERMISSION;
 @Service
 @RequiredArgsConstructor
 public class CallbackQueryHandler {
-    private final Calendar calendarService;
+    private final CalendarService calendarService;
     private final ReservationService reservationService;
     private final DayOffRepository dayOffRepository;
     private final KeyboardService keyboardService;

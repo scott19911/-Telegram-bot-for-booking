@@ -1,8 +1,9 @@
-package com.heroku.nwl.service;
+package com.heroku.nwl.service.implementation;
 
 import com.heroku.nwl.dto.CalendarDayDto;
 import com.heroku.nwl.model.DayOff;
 import com.heroku.nwl.model.DayOffRepository;
+import com.heroku.nwl.service.CalendarService;
 import com.vdurmont.emoji.EmojiParser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -19,9 +20,9 @@ import static com.heroku.nwl.constants.Constants.FORMATTER;
 
 @RequiredArgsConstructor
 @Component
-public class Calendar {
+public class CalendarServiceImpl implements CalendarService {
     private final DayOffRepository dayOffRepository;
-
+    @Override
     public List<List<CalendarDayDto>> getCalendar(LocalDate date, String command) {
         List<List<CalendarDayDto>> rowList = new ArrayList<>();
         int shift = date.withDayOfMonth(1).getDayOfWeek().getValue() - 1;
@@ -37,7 +38,7 @@ public class Calendar {
         }
         return rowList;
     }
-
+    @Override
     public List<CalendarDayDto> getDateRow(LocalDate date, int shift, List<DayOff> dayOffList, String command) {
         List<CalendarDayDto> row = new ArrayList<>();
         String xEmoji = EmojiParser.parseToUnicode(":x:");

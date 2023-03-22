@@ -1,9 +1,12 @@
-package com.heroku.nwl.service;
+package com.heroku.nwl.service.implementation;
 
 import com.heroku.nwl.config.CustomBotException;
 import com.heroku.nwl.constants.Commands;
 import com.heroku.nwl.dto.CalendarDayDto;
 import com.heroku.nwl.model.Role;
+import com.heroku.nwl.service.CalendarService;
+import com.heroku.nwl.service.KeyboardService;
+import com.heroku.nwl.service.UserService;
 import com.vdurmont.emoji.EmojiParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +42,7 @@ import static com.heroku.nwl.constants.ErrorMessage.ERROR_PERMISSION;
 @Service
 public class MessageHandler {
 
-    private final Calendar calendarService;
+    private final CalendarService calendarService;
     private final KeyboardService keyboardService;
     private final UserService userService;
 
