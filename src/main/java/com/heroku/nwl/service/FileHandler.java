@@ -1,6 +1,8 @@
 package com.heroku.nwl.service;
 
+import com.aspose.cells.SaveFormat;
 import com.aspose.cells.Workbook;
+import com.aspose.cells.Worksheet;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,12 +21,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.heroku.nwl.constants.Constants.A1;
+import static com.heroku.nwl.constants.Constants.AVERAGE_TIME;
+import static com.heroku.nwl.constants.Constants.A_ROW;
+import static com.heroku.nwl.constants.Constants.B1;
+import static com.heroku.nwl.constants.Constants.B_ROW;
+import static com.heroku.nwl.constants.Constants.C1;
+import static com.heroku.nwl.constants.Constants.C_ROW;
+import static com.heroku.nwl.constants.Constants.NAME;
+import static com.heroku.nwl.constants.Constants.PRICE;
 import static com.heroku.nwl.constants.Constants.SERVICE_CATALOG_COLUMNS;
+import static com.heroku.nwl.constants.Constants.SERVICE_CATALOG_FILE;
 import static com.heroku.nwl.constants.Constants.SERVICE_CATALOG_SHEET_INDEX;
 import static com.heroku.nwl.constants.Constants.WORK_SETTINGS_COLUMNS;
 import static com.heroku.nwl.constants.Constants.WORK_SETTINGS_SHEET_INDEX;
@@ -154,16 +167,40 @@ public class FileHandler {
         ObjectMapper objectMapper = new ObjectMapper();
         return objectMapper.writeValueAsString(data);
     }
-    private boolean checkServiceFields(List<ServiceCatalogDto> serviceCatalogDtos){
-        for (ServiceCatalogDto service: serviceCatalogDtos
-             ) {
-            if(service.getServiceName() == null){
+
+    public File getServiceCatalogFile() {
+        Workbook workbook = new Workbook();
+        Worksheet worksheet = workbook.getWorksheets().get(0);
+        List<ServiceCatalog> serviceCatalogList = serviceCatalogRepository.findAllByActiveService(true);
+        worksheet.getCells().get(A1).setValue(NAME);
+        worksheet.getCells().get(B1).setValue(PRICE);
+        worksheet.getCells().get(C1).setValue(AVERAGE_TIME);
+        int row = 2;
+        for (ServiceCatalog service : serviceCatalogList) {
+            worksheet.getCells().get(A_ROW + row).setValue(service.getName());
+            worksheet.getCells().get(B_ROW + row).setValue(service.getPrice());
+            worksheet.getCells().get(C_ROW + row).setValue(service.getAverageTime());
+            row++;
+        }
+        try {
+            workbook.save(SERVICE_CATALOG_FILE, SaveFormat.XLSX);
+            return new File(SERVICE_CATALOG_FILE);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    private boolean checkServiceFields(List<ServiceCatalogDto> serviceCatalogDtos) {
+        for (ServiceCatalogDto service : serviceCatalogDtos
+        ) {
+            if (service.getServiceName() == null) {
                 return false;
             }
-            if(service.getServiceName().isBlank()){
+            if (service.getServiceName().isBlank()) {
                 return false;
             }
-            if (service.getPrice() == 0 || service.getTime() == 0){
+            if (service.getPrice() == 0 || service.getTime() == 0) {
                 return false;
             }
         }

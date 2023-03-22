@@ -2,8 +2,8 @@ package com.heroku.nwl.service;
 
 import com.heroku.nwl.config.CustomBotException;
 import com.heroku.nwl.constants.Constants;
-import com.heroku.nwl.model.ReservationRepository;
 import com.heroku.nwl.model.Reservation;
+import com.heroku.nwl.model.ReservationRepository;
 import com.heroku.nwl.model.ReservationStatus;
 import com.heroku.nwl.model.ServiceCatalog;
 import com.heroku.nwl.model.ServiceCatalogRepository;
@@ -29,17 +29,15 @@ public class ReservationService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean createReservation(LocalTime reserveTime, LocalDate reserveDate, Long chatId,Long serviceCatalogId) throws CustomBotException {
-        Reservation reservation = reservationRepository.findByOrderDateAndOrderTime(reserveDate, reserveTime);
-        if ((reservation != null
-                && reservation.
-                    getReservationStatus().
-                    equals(ReservationStatus.ACTIVE))
-                || userRepository.findByChatId(chatId) == null) {
+        List<Reservation> reservations = reservationRepository.findByOrderDateAndReservationStatus(reserveDate, ReservationStatus.ACTIVE);
+        if (userRepository.findByChatId(chatId) == null
+                || timeAlreadyTaken(reservations, reserveTime )
+                || reserveDate.isBefore(LocalDate.now())) {
             return false;
         }
         Reservation newReservation = new Reservation();
         ServiceCatalog serviceCatalog = serviceCatalogRepository.findById(serviceCatalogId).orElse(null);
-        if (serviceCatalog == null){
+        if (serviceCatalog == null) {
             throw new CustomBotException(ERROR_SERVICE_NOT_AVAILABLE);
         }
         newReservation.setOrderTime(reserveTime);
@@ -50,6 +48,18 @@ public class ReservationService {
         newReservation.setUser(userRepository.findByChatId(chatId));
         reservationRepository.save(newReservation);
         return true;
+    }
+
+    private boolean timeAlreadyTaken(List<Reservation> reservationList, LocalTime reserveTime) {
+        for (Reservation reservation : reservationList
+        ) {
+            if ((reserveTime.equals(reservation.getOrderTime())
+                    || reserveTime.isAfter(reservation.getOrderTime()))
+                    && reserveTime.isBefore(reservation.getEndTime())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -76,7 +86,15 @@ public class ReservationService {
     public List<Reservation> getReservationsByDate(LocalDate date) {
         return reservationRepository.findByOrderDate(date);
     }
+
     public List<Reservation> getReservationsByDateAndReservationStatus(LocalDate date, ReservationStatus status) {
         return reservationRepository.findByOrderDateAndReservationStatus(date, status);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void changeStatus(Long reservationId, ReservationStatus reservationStatus) {
+        Reservation reservation = reservationRepository.findByOrderId(reservationId);
+        reservation.setReservationStatus(reservationStatus);
+        reservationRepository.save(reservation);
     }
 }

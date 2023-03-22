@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.telegram.telegrambots.meta.api.objects.Chat;
 import org.telegram.telegrambots.meta.api.objects.Message;
 
 import java.util.List;
@@ -34,14 +35,13 @@ public class UserService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public User registerUser(Message msg) {
         User user = userRepository.findById(msg.getChatId()).orElse(new User());
-        var chatId = msg.getChatId();
-        var chat = msg.getChat();
+        long chatId = msg.getChatId();
+        Chat chat = msg.getChat();
         user.setChatId(chatId);
         user.setFirstName(chat.getFirstName());
         user.setLastName(chat.getLastName());
         user.setUserName(chat.getUserName());
         String phone = msg.getContact().getPhoneNumber();
-
         user.setPhoneNumber(phone.startsWith("+") ? phone : "+" + phone);
         user.setRole(Role.USER);
         if (user.getPhoneNumber().equals(botAdminPhone)) {

@@ -25,10 +25,13 @@ import static com.heroku.nwl.constants.Constants.CHOOSE_DATE;
 import static com.heroku.nwl.constants.Constants.CHOOSE_DAY_OFF;
 import static com.heroku.nwl.constants.Constants.ERROR;
 import static com.heroku.nwl.constants.Constants.HELP_TEXT;
+import static com.heroku.nwl.constants.Constants.SEND_SERVICE_FILE;
+import static com.heroku.nwl.constants.Constants.SEND_SETTING_FILE;
 import static com.heroku.nwl.constants.Constants.SHARE_PHONE;
 import static com.heroku.nwl.constants.Constants.USER_RESERVATION;
 import static com.heroku.nwl.constants.Constants.WELCOME_TEXT;
 import static com.heroku.nwl.constants.Constants.YOUR_ID;
+import static com.heroku.nwl.constants.ErrorMessage.ERROR_NEED_REGISTER;
 import static com.heroku.nwl.constants.ErrorMessage.ERROR_PERMISSION;
 
 @RequiredArgsConstructor
@@ -49,15 +52,26 @@ public class MessageHandler {
             case Commands.START -> message = startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
             case Commands.HELP -> message = prepareSendMessage(chatId, HELP_TEXT, null);
             case Commands.ADMIN_CALENDAR ->
-                 message = getCalendarSendMessage(currentDate, chatId, ADD_DAY_OFF, CHOOSE_DAY_OFF);
+                    message = getCalendarSendMessage(currentDate, chatId, ADD_DAY_OFF, CHOOSE_DAY_OFF);
             case Commands.ADMIN_CALENDAR_RESERVE ->
                     message = getCalendarSendMessage(currentDate, chatId, ALL_RESERVATION, CHOOSE_DATE);
             case Commands.AVAILABLE_DATE_TO_RESERVE ->
                     message = prepareSendMessage(chatId, CHOOSE_DATE, keyboardService.getScheduleDays());
-            case Commands.SHOW_USER_RESERVATION ->
-                    message = prepareSendMessage(chatId, USER_RESERVATION, keyboardService.getUserReservation(chatId));
+            case Commands.SHOW_USER_RESERVATION -> {
+                if (userService.getUserById(chatId) == null) {
+                    throw new CustomBotException(ERROR_NEED_REGISTER);
+                }
+                message = prepareSendMessage(chatId, USER_RESERVATION, keyboardService.getUserReservation(chatId));
+            }
+            case Commands.GET_SETTING_FILE -> {
+                if (!userService.getUserRole(chatId).equals(Role.ADMIN)) {
+                    throw new CustomBotException(ERROR_PERMISSION);
+                }
+                message = prepareSendMessage(chatId, SEND_SETTING_FILE, null);
+            }
+            case Commands.GET_SERVICE_CATALOG -> message = prepareSendMessage(chatId, SEND_SERVICE_FILE, null);
             case Commands.CHAT_ID -> message = prepareSendMessage(chatId, YOUR_ID + chatId, null);
-            case Commands.CONTACTS -> message = prepareSendMessage(chatId,userService.getContact(),null);
+            case Commands.CONTACTS -> message = prepareSendMessage(chatId, userService.getContact(), null);
             default -> message = prepareSendMessage(chatId, ERROR, null);
         }
         return message;

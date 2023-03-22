@@ -26,4 +26,8 @@ public class Commands {
     public static final String GO_BACK = "GO";
     public static final String CONTACTS = "/contact";
     public static final String SEND_MESSAGE = "/send";
+    public static final String CHANGE_RESERVATION_STATUS = "cRS";
+    public static final String GET_SERVICE_CATALOG = "/get_service";
+    public static final String GET_SETTING_FILE = "/get_setting";
+    public static final String JSON_CHANGE_RESERVATION_STATUS = "{\"c\":\"%s\",\"id\":\"%d\",\"cRS\":\"%s\"}";
 }

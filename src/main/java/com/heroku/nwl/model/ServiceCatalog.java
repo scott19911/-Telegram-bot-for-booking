@@ -22,6 +22,4 @@ public class ServiceCatalog {
     @Column(name = "active_service", columnDefinition = "TINYINT(1)")
     private boolean activeService;
     private int averageTime;
-    @OneToMany(mappedBy = "orderId")
-    private List<Reservation> orders;
 }

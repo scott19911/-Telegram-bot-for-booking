@@ -25,5 +25,7 @@ public interface ReservationRepository extends CrudRepository<Reservation, Long>
             @Param("currentTime") LocalTime time);
 
     Reservation findByOrderId(Long orderId);
+
+    Reservation findByOrderDateAndOrderTimeAndReservationStatus(LocalDate date, LocalTime time, ReservationStatus status);
 }
 

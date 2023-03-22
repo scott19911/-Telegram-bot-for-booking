@@ -1,6 +1,7 @@
 package com.heroku.nwl.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.heroku.nwl.model.ReservationStatus;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -28,13 +29,15 @@ public class ButtonDto {
     private String returnTo;
     @JsonProperty("sId")
     private Long serviceId;
+    @JsonProperty("cRS")
+    ReservationStatus reservationStatus;
 
     public void setCurrentDate(String currentDate) {
-        if (currentDate != null) this.currentDate = LocalDate.parse(currentDate,FORMATTER);
+        if (currentDate != null) this.currentDate = LocalDate.parse(currentDate, FORMATTER);
     }
 
     public void setNextDate(String nextDate) {
-        if (!nextDate.equals(NULL)) this.nextDate = LocalDate.parse(nextDate,FORMATTER);
+        if (!nextDate.equals(NULL)) this.nextDate = LocalDate.parse(nextDate, FORMATTER);
     }
 
     public void setPreviousDate(String previousDate) {

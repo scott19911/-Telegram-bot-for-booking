@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.heroku.nwl.config.BotConfig;
 import com.heroku.nwl.config.CustomBotException;
+import com.heroku.nwl.constants.Commands;
 import com.heroku.nwl.constants.Constants;
 import com.heroku.nwl.constants.ErrorMessage;
 import com.heroku.nwl.dto.ButtonDto;
@@ -14,8 +15,10 @@ import com.heroku.nwl.service.CallbackQueryHandler;
 import com.heroku.nwl.service.FileHandler;
 import com.heroku.nwl.service.MessageHandler;
 import com.heroku.nwl.service.NotificationService;
+import com.heroku.nwl.service.ReservationService;
 import com.heroku.nwl.service.UserService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Controller;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
@@ -31,6 +34,8 @@ import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScope
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
+import java.io.InputStream;
+import java.net.URL;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -39,7 +44,9 @@ import java.util.List;
 import static com.heroku.nwl.constants.Commands.CANCEL_RESERVE;
 import static com.heroku.nwl.constants.Constants.HELP_TEXT;
 import static com.heroku.nwl.constants.Constants.MESSAGE_START_WORK;
-import static com.heroku.nwl.constants.Constants.RESERVE;
+import static com.heroku.nwl.constants.Constants.SEND_SERVICE_FILE;
+import static com.heroku.nwl.constants.Constants.SEND_SETTING_FILE;
+import static com.heroku.nwl.constants.Constants.USER_NEW_RESERVATION;
 
 @Slf4j
 @Controller
@@ -51,15 +58,17 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final NotificationService notificationService;
     private final FileHandler fileHandler;
     private final UserService userService;
+    private final ReservationService reservationService;
 
     public TelegramBot(BotConfig config,
-                       CallbackQueryHandler callbackQueryHandler, MessageHandler messageHandler, NotificationService notificationService, FileHandler fileHandler, UserService userService) {
+                       CallbackQueryHandler callbackQueryHandler, MessageHandler messageHandler, NotificationService notificationService, FileHandler fileHandler, UserService userService, ReservationService reservationService) {
         this.config = config;
         this.callbackQueryHandler = callbackQueryHandler;
         this.messageHandler = messageHandler;
         this.notificationService = notificationService;
         this.fileHandler = fileHandler;
         this.userService = userService;
+        this.reservationService = reservationService;
         setBotMenu();
     }
 
@@ -73,6 +82,9 @@ public class TelegramBot extends TelegramLongPollingBot {
         botCommands.add(new BotCommand("my_reserve", "View your active bookings"));
         botCommands.add(new BotCommand("contact", "Contact Information"));
         botCommands.add(new BotCommand("send", "Send message to all users"));
+        botCommands.add(new BotCommand("help", "Help"));
+        botCommands.add(new BotCommand("get_service", SEND_SERVICE_FILE));
+        botCommands.add(new BotCommand("get_setting", SEND_SETTING_FILE));
         try {
             this.execute(new SetMyCommands(botCommands, new BotCommandScopeDefault(), null));
         } catch (TelegramApiException e) {
@@ -125,7 +137,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             executeMessage(messageHandler.prepareSendMessage(chatId,HELP_TEXT,null));
             if (user.getRole().equals(Role.ADMIN)) {
                 executeMessage(messageHandler.prepareSendMessage(chatId,MESSAGE_START_WORK,null));
-                sendFile(chatId);
+                sendFile(chatId,Commands.GET_SETTING_FILE);
             }
         }
     }
@@ -140,6 +152,7 @@ public class TelegramBot extends TelegramLongPollingBot {
            } else {
                executeMessage(messageHandler.getMessage(update));
            }
+           sendFile(update.getMessage().getChatId(),update.getMessage().getText());
         }
     }
     public void receiveFileHandler(Update update) throws CustomBotException {
@@ -161,7 +174,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             EditMessageText editMessageText = callbackQueryHandler.getEditMessage(update);
             executeEditMessageText(editMessageText);
             notifyAdmin(editMessageText, update);
-            if (notify != null && editMessageText.getText().startsWith(RESERVE)) {
+            if (notify != null) {
                 executeMessage(notify);
             }
         }
@@ -182,9 +195,10 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
     private void notifyAdmin(EditMessageText editMessageText, Update update) {
         String messageText = null;
-        if (editMessageText.getText().startsWith(RESERVE)){
+        if (editMessageText.getText().startsWith(USER_NEW_RESERVATION)) {
             messageText = Constants.NEW_RESERVATION;
-        } if (editMessageText.getText().startsWith(Constants.DELETE_RESERVE)){
+        }
+        if (editMessageText.getText().startsWith(Constants.DELETE_RESERVE)) {
             messageText = Constants.USER_CANSEL_RESERVATION;
         }
         if (messageText != null) {
@@ -232,10 +246,20 @@ public class TelegramBot extends TelegramLongPollingBot {
             log.error(e.getMessage(), e);
         }
     }
-    private void sendFile(Long chatId){
+    private void sendFile(Long chatId, String command){
         SendDocument sendDocument = new SendDocument();
         sendDocument.setChatId(String.valueOf(chatId));
-        InputFile inputFile = new InputFile(new File(Constants.SETTING_FILE_NAME));
+        InputFile inputFile;
+        InputStream inputStream;
+        if (command.equals(Commands.GET_SERVICE_CATALOG)){
+            inputFile = new InputFile(fileHandler.getServiceCatalogFile());
+        } else if(command.equals(Commands.GET_SETTING_FILE)) {
+            inputStream = getClass().getClassLoader().getResourceAsStream(Constants.SETTING_FILE_NAME);
+            inputFile = new InputFile(inputStream,Constants.SETTING_FILE_NAME);
+            sendDocument.setDocument(inputFile);
+        }else {
+            return;
+        }
         sendDocument.setDocument(inputFile);
         try {
             execute(sendDocument);
@@ -248,7 +272,21 @@ public class TelegramBot extends TelegramLongPollingBot {
         try {
             execute(message);
         } catch (TelegramApiException e) {
-            log.error(e.getMessage(),e);
+            log.error(e.getMessage(), e);
+        }
+    }
+
+    @Scheduled(cron = "0 * * * * *")
+    public void notifyUsers() {
+        for (SendMessage message : notificationService.changeReservationStatus()
+        ) {
+            if (message != null) {
+                executeMessage(message);
+            }
+        }
+        SendMessage sendMessage = notificationService.userNotifyAboutSession();
+        if (sendMessage != null) {
+            executeMessage(sendMessage);
         }
     }
 }

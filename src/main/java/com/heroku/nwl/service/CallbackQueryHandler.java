@@ -30,6 +30,7 @@ import static com.heroku.nwl.constants.Commands.ALL_RESERVATION;
 import static com.heroku.nwl.constants.Commands.AVAILABLE_DATE_TO_RESERVE;
 import static com.heroku.nwl.constants.Commands.CANCEL_RESERVE;
 import static com.heroku.nwl.constants.Commands.CHANGE_MONTH;
+import static com.heroku.nwl.constants.Commands.CHANGE_RESERVATION_STATUS;
 import static com.heroku.nwl.constants.Commands.DELETE_RESERVE;
 import static com.heroku.nwl.constants.Commands.GO_BACK;
 import static com.heroku.nwl.constants.Commands.ORDER_TIME;
@@ -47,6 +48,7 @@ import static com.heroku.nwl.constants.Constants.ERROR;
 import static com.heroku.nwl.constants.Constants.ERROR_DELETE_RESERVATION_MESSAGE;
 import static com.heroku.nwl.constants.Constants.TIME_ALREADY_TAKEN;
 import static com.heroku.nwl.constants.Constants.USER_NEW_RESERVATION_MESSAGE;
+import static com.heroku.nwl.constants.ErrorMessage.ERROR_NEED_REGISTER;
 import static com.heroku.nwl.constants.ErrorMessage.ERROR_PERMISSION;
 
 
@@ -94,9 +96,22 @@ public class CallbackQueryHandler {
             case CANCEL_RESERVE -> canselReservation(buttonDto, chatId, messageId);
             case GO_BACK -> getPriviesMenuMessage(buttonDto, chatId, messageId);
             case SELECT_SERVICE -> getServiceCatalog(buttonDto, chatId, messageId);
+            case CHANGE_RESERVATION_STATUS -> getChangeReservationStatus(buttonDto, chatId, messageId);
             default -> prepareEditMessageText(ERROR, chatId, messageId, null);
         };
         return message;
+    }
+
+    private EditMessageText getChangeReservationStatus(ButtonDto buttonDto, long chatId, long messageId) throws CustomBotException {
+        if (!userService.getUserRole(chatId).equals(Role.ADMIN)) {
+            throw new CustomBotException(ERROR_PERMISSION);
+        }
+        reservationService.changeStatus(buttonDto.getReservationId(), buttonDto.getReservationStatus());
+        return prepareEditMessageText(
+                Constants.CHANGE_RESERVATION_STATUS + buttonDto.getReservationStatus(),
+                chatId,
+                messageId,
+                null);
     }
 
     private EditMessageText getChangeMonthMessage(ButtonDto buttonDto, Long chatId, Long messageId) throws CustomBotException {
@@ -140,10 +155,13 @@ public class CallbackQueryHandler {
 
     private EditMessageText getReservationOnTimeMessage(ButtonDto buttonDto, long chatId, long messageId) throws CustomBotException {
         EditMessageText message;
+        if (userService.getUserById(chatId) == null) {
+            throw new CustomBotException(ERROR_NEED_REGISTER);
+        }
         LocalDate orderDate = buttonDto.getCurrentDate();
         LocalTime orderTime = buttonDto.getReservedTime();
-        if (reservationService.createReservation(orderTime, orderDate, chatId,buttonDto.getServiceId())) {
-            message = prepareEditMessageText(String.format(USER_NEW_RESERVATION_MESSAGE,orderDate, orderTime), chatId, messageId, null);
+        if (reservationService.createReservation(orderTime, orderDate, chatId, buttonDto.getServiceId())) {
+            message = prepareEditMessageText(String.format(USER_NEW_RESERVATION_MESSAGE, orderDate, orderTime), chatId, messageId, null);
         } else {
             message = prepareEditMessageText(TIME_ALREADY_TAKEN, chatId, messageId, null);
         }

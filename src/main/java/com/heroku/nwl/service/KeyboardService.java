@@ -29,7 +29,9 @@ import static com.heroku.nwl.constants.Commands.ALL_RESERVATION;
 import static com.heroku.nwl.constants.Commands.AVAILABLE_DATE_TO_RESERVE;
 import static com.heroku.nwl.constants.Commands.CANCEL_RESERVE;
 import static com.heroku.nwl.constants.Commands.CHANGE_MONTH;
+import static com.heroku.nwl.constants.Commands.CHANGE_RESERVATION_STATUS;
 import static com.heroku.nwl.constants.Commands.DELETE_RESERVE;
+import static com.heroku.nwl.constants.Commands.JSON_CHANGE_RESERVATION_STATUS;
 import static com.heroku.nwl.constants.Commands.JSON_COMMAND_CANCEL_RESERVATION;
 import static com.heroku.nwl.constants.Commands.JSON_COMMAND_CHANGE_MONTH;
 import static com.heroku.nwl.constants.Commands.JSON_COMMAND_DATA_TIME;
@@ -47,12 +49,15 @@ import static com.heroku.nwl.constants.Constants.DOT_ZERO;
 import static com.heroku.nwl.constants.Constants.EMPTY_DATA;
 import static com.heroku.nwl.constants.Constants.FORMATTER;
 import static com.heroku.nwl.constants.Constants.LEFT_ARROW;
+import static com.heroku.nwl.constants.Constants.MAX_ROWS;
 import static com.heroku.nwl.constants.Constants.NEXT;
+import static com.heroku.nwl.constants.Constants.NO;
 import static com.heroku.nwl.constants.Constants.PRIVIES;
 import static com.heroku.nwl.constants.Constants.RESERVE_AT;
 import static com.heroku.nwl.constants.Constants.RIGHT_ARROW;
 import static com.heroku.nwl.constants.Constants.SERVICE_BUTTON_TEXT;
 import static com.heroku.nwl.constants.Constants.WEEK_DAYS;
+import static com.heroku.nwl.constants.Constants.YES;
 import static com.heroku.nwl.constants.ErrorMessage.ERROR_SERVICE_NOT_AVAILABLE;
 
 @RequiredArgsConstructor
@@ -94,6 +99,27 @@ public class KeyboardService {
         return inlineKeyboardMarkup;
     }
 
+    public InlineKeyboardMarkup changeReservationStatus(Reservation reservation) {
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        List<InlineKeyboardButton> rowList = new ArrayList<>();
+        List<List<InlineKeyboardButton>> key = new ArrayList<>();
+        String dataCame = String.format(
+                JSON_CHANGE_RESERVATION_STATUS,
+                CHANGE_RESERVATION_STATUS,
+                reservation.getOrderId(),
+                ReservationStatus.SUCCESSES);
+        String dataMissed = String.format(
+                JSON_CHANGE_RESERVATION_STATUS,
+                CHANGE_RESERVATION_STATUS,
+                reservation.getOrderId(),
+                ReservationStatus.MISSED);
+        rowList.add(getInlineKeyboardButton(YES, dataCame));
+        rowList.add(getInlineKeyboardButton(NO, dataMissed));
+        key.add(rowList);
+        inlineKeyboardMarkup.setKeyboard(key);
+        return inlineKeyboardMarkup;
+    }
+
     public InlineKeyboardMarkup getAvailableTimeKeyboard(ButtonDto dto) throws CustomBotException {
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         List<LocalTime> workTime = workSchedule.getWorkTime(dto.getCurrentDate(), dto.getServiceId());
@@ -123,21 +149,58 @@ public class KeyboardService {
             navigateButtons.add(getInlineKeyboardButton(RIGHT_ARROW, outputData));
         }
         rowList.add(navigateButtons);
+        resizeMarkup(workTime, rowList, dto);
+        rowList.add(getBackButton(AVAILABLE_DATE_TO_RESERVE, dto.getCurrentDate()));
+        inlineKeyboardMarkup.setKeyboard(rowList);
+        return inlineKeyboardMarkup;
+    }
+
+    private void resizeMarkup(List<LocalTime> workTime, List<List<InlineKeyboardButton>> rowList, ButtonDto dto) {
+        if (workTime.size() > 15) {
+            int rows = Math.round(workTime.size() / MAX_ROWS);
+            for (List<LocalTime> time : splitList(workTime, rows)
+            ) {
+                rowList.add(getAvailableTimeKeyboardRow(time, dto));
+            }
+        } else {
+            for (LocalTime time : workTime
+            ) {
+                List<InlineKeyboardButton> buttons = new ArrayList<>();
+                String buttonText = RESERVE_AT + time;
+                String outputData = String.valueOf(new Formatter().format(
+                        JSON_COMMAND_DATA_TIME, ORDER_TIME,
+                        dto.getCurrentDate().format(FORMATTER),
+                        time,
+                        dto.getServiceId()));
+                buttons.add(getInlineKeyboardButton(buttonText, outputData));
+                rowList.add(buttons);
+            }
+        }
+    }
+
+    private List<InlineKeyboardButton> getAvailableTimeKeyboardRow(List<LocalTime> workTime, ButtonDto dto) {
+        List<InlineKeyboardButton> buttons = new ArrayList<>();
         for (LocalTime time : workTime
         ) {
-            List<InlineKeyboardButton> buttons = new ArrayList<>();
-            String buttonText = RESERVE_AT + time;
+            String buttonText = String.valueOf(time);
             String outputData = String.valueOf(new Formatter().format(
                     JSON_COMMAND_DATA_TIME, ORDER_TIME,
                     dto.getCurrentDate().format(FORMATTER),
                     time,
                     dto.getServiceId()));
             buttons.add(getInlineKeyboardButton(buttonText, outputData));
-            rowList.add(buttons);
         }
-        rowList.add(getBackButton(AVAILABLE_DATE_TO_RESERVE, dto.getCurrentDate()));
-        inlineKeyboardMarkup.setKeyboard(rowList);
-        return inlineKeyboardMarkup;
+        return buttons;
+    }
+
+    private List<List<LocalTime>> splitList(List<LocalTime> list, int size) {
+        List<List<LocalTime>> parts = new ArrayList<>();
+        int totalSize = list.size();
+        for (int i = 0; i < totalSize; i += size) {
+            int end = Math.min(totalSize, i + size);
+            parts.add(list.subList(i, end));
+        }
+        return parts;
     }
 
     private Map<String, String> getNextDate(List<LocalDate> workDays, int index) {
